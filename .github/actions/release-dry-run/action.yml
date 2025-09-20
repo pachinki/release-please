@@ -42,6 +42,10 @@ inputs:
     description: "If 'true', include Raw Exit Code row in PR comment table"
     required: false
     default: "false"
+  enforce-major-approval:
+    description: "If 'true', add labels and require approval for major version bumps"
+    required: false
+    default: "true"
 
 outputs:
   current_tag:
@@ -53,6 +57,9 @@ outputs:
   bump_type:
     description: "Semantic bump type (none|patch|minor|major)"
     value: ${{ steps.forward_predict.outputs.bump_type }}
+  major_bump_detected:
+    description: "True if major bump was detected and protection was applied"
+    value: ${{ github.event_name == 'pull_request' && steps.forward_predict.outputs.bump_type == 'major' && inputs['enforce-major-approval'] == 'true' }}
 
 runs:
   using: "composite"
@@ -171,6 +178,90 @@ runs:
         path: baseline.log
         if-no-files-found: warn
 
+    - name: Major Bump Protection
+      if: ${{ github.event_name == 'pull_request' && steps.forward_predict.outputs.bump_type == 'major' && inputs['enforce-major-approval'] == 'true' }}
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const {owner, repo} = context.repo;
+          const issue_number = context.issue.number;
+          
+          // Add major-release and requires-approval labels
+          try {
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number,
+              labels: ['major-release', 'requires-approval']
+            });
+            core.info('Added major-release and requires-approval labels');
+          } catch (error) {
+            core.warning(`Failed to add labels: ${error.message}`);
+          }
+          
+          // Post warning comment about major bump
+          const warningMarker = '<!-- major-bump-warning -->';
+          const currentTag = `${{ steps.baseline.outputs.current_tag }}`;
+          const nextTag = `${{ steps.forward_predict.outputs.next_tag }}`;
+          
+          const warningBody = warningMarker + `
+          ## ⚠️ Major Version Bump Detected!
+          
+          This PR contains **breaking changes** that will create a major release:
+          
+          - **Current Version**: \`${currentTag}\`
+          - **Next Version**: \`${nextTag}\`
+          - **Impact**: This is a **BREAKING CHANGE** that may affect consumers
+          
+          ### Required Actions:
+          1. 🏷️ **Labels Added**: \`major-release\`, \`requires-approval\`
+          2. 👥 **Review Required**: A senior maintainer must approve this PR
+          3. 📋 **Breaking Changes**: Document all breaking changes in the PR description
+          4. 📢 **Communication**: Plan release announcement and migration guide
+          
+          ### Before Merging:
+          - [ ] Breaking changes documented
+          - [ ] Migration guide provided
+          - [ ] Team/consumers notified
+          - [ ] Senior maintainer approval obtained
+          
+          **Do not merge until all requirements are met!**`;
+          
+          // Check if warning comment already exists
+          const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number});
+          const existingWarning = comments.find(c => c.body && c.body.includes(warningMarker));
+          
+          if (existingWarning) {
+            await github.rest.issues.updateComment({
+              owner,
+              repo,
+              comment_id: existingWarning.id,
+              body: warningBody
+            });
+            core.info('Updated existing major bump warning comment');
+          } else {
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body: warningBody
+            });
+            core.info('Created new major bump warning comment');
+          }
+          
+          // Request reviews from repository maintainers (if CODEOWNERS exists)
+          try {
+            const codeowners = await github.rest.repos.getContent({
+              owner,
+              repo,
+              path: '.github/CODEOWNERS'
+            });
+            core.info('CODEOWNERS file found - review requests should be automatic');
+          } catch (error) {
+            core.warning('No CODEOWNERS file found. Consider adding one for automatic review requests on major bumps.');
+          }
+
     - name: PR Comment (Simple Version)
       if: ${{ github.event_name == 'pull_request' && inputs['pr-comment'] == 'true' }}
       uses: actions/github-script@v7
@@ -182,15 +273,21 @@ runs:
           const nextTag = `${{ steps.forward_predict.outputs.next_tag }}` || 'none';
           const bumpType = `${{ steps.forward_predict.outputs.bump_type }}` || 'none';
           
+          // Add warning icon for major bumps
+          const bumpTypeDisplay = bumpType === 'major' ? '⚠️ `major` (BREAKING)' : `\`${bumpType}\``;
+          const headerEmoji = bumpType === 'major' ? '⚠️ ' : '';
+          
           const body = marker + `
-          ### Release Dry Run Result
+          ### ${headerEmoji}Release Dry Run Result
 
           | Field | Value |
           |-------|-------|
           | Current Tag | \`${currentTag}\` |
           | Next Tag After Merge | \`${nextTag}\` |
-          | Bump Type | \`${bumpType}\` |
+          | Bump Type | ${bumpTypeDisplay} |
 
+          ${bumpType === 'major' ? '> **Warning**: This PR contains breaking changes! Check labels and approval requirements.' : ''}
+          
           _Comment updates automatically on each run._`;
 
           const {owner, repo} = context.repo;

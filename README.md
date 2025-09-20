@@ -235,7 +235,40 @@ The heuristic is intentionally minimal (e.g. multiple `feat:` still equals one m
 
 * Add `used_fallback=true` output for visibility.
 * Upload JSON artifact (raw log + parsed metadata) once GHES artifact limitations are resolved.
-* Enforce label / approval if a major bump is predicted.
+* ✅ ~~Enforce label / approval if a major bump is predicted.~~ **IMPLEMENTED**
+
+### Major Bump Protection
+
+The release dry-run workflow now includes automatic protection for major version bumps (breaking changes):
+
+**When a major bump is detected, the workflow automatically:**
+1. 🏷️ **Adds labels**: `major-release` and `requires-approval` 
+2. 📝 **Posts warning comment** with breaking change checklist
+3. 👥 **Requests reviews** from CODEOWNERS (if configured)
+4. ⚠️ **Shows visual warnings** in the standard dry-run comment
+
+**Configuration:**
+```yaml
+- uses: ./.github/actions/release-dry-run
+  with:
+    enforce-major-approval: true  # default: true
+```
+
+**To set up automatic review requests:**
+1. Create `.github/CODEOWNERS` file with senior maintainers
+2. Configure branch protection rules requiring CODEOWNERS approval
+3. Major bumps will automatically request reviews from specified users
+
+**Example CODEOWNERS:**
+```
+# Global owners
+* @senior-maintainer @release-manager
+
+# Workflows require DevOps approval  
+/.github/ @devops-team
+```
+
+This ensures breaking changes receive proper review and communication before release.
 
 ---
 Use the dry run summary during review to answer: *Will this PR release, and to what version?*

@@ -1,0 +1,11 @@
+# Global owners - these users will be automatically requested to review any PR
+* @senior-maintainer @release-manager
+
+# Workflow and release automation
+/.github/ @devops-team @senior-maintainer
+
+# Documentation
+*.md @docs-team
+
+# Major version releases require additional approval
+# This is enforced by the release-dry-run action when major bumps are detected
