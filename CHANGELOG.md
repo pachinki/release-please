@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.0.0](https://github.com/pachinki/release-please/compare/v2.3.0...v3.0.0) (2025-09-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* 2nd pr ([#30](https://github.com/pachinki/release-please/issues/30))
+
+### Features
+
+* 2nd pr ([#30](https://github.com/pachinki/release-please/issues/30)) ([17016ed](https://github.com/pachinki/release-please/commit/17016ed425c5793c728bc2ef35639f8214976f63))
+
+
+### Bug Fixes
+
+* first pr ([#28](https://github.com/pachinki/release-please/issues/28)) ([84347f1](https://github.com/pachinki/release-please/commit/84347f165c8f0bdccb72a1a6a9935e39002cc56d))
+
 ## [2.3.0](https://github.com/pachinki/release-please/compare/v2.2.6...v2.3.0) (2025-09-20)
 
 
