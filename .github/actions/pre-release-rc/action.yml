@@ -178,16 +178,16 @@ runs:
     - name: Create RC tag
       shell: bash
       env:
-        GIT_USER_NAME: ${{ vars.RC_GIT_USER_NAME }}
-        GIT_USER_EMAIL: ${{ vars.RC_GIT_USER_EMAIL }}
+        GIT_USER_NAME: ${{ vars.RC_GIT_USER_NAME || 'Release Automation' }}
+        GIT_USER_EMAIL: ${{ vars.RC_GIT_USER_EMAIL || 'releases-bot@example.com' }}
       run: |
         set -euo pipefail
         TAG='${{ steps.compute-rc.outputs.rc_tag }}'
         if ! git config user.email >/dev/null; then
-          git config user.email "${GIT_USER_EMAIL:-releases-bot@your-domain.example}"
+          git config user.email "${GIT_USER_EMAIL}"
         fi
         if ! git config user.name >/dev/null; then
-          git config user.name "${GIT_USER_NAME:-Release Automation}"
+          git config user.name "${GIT_USER_NAME}"
         fi
         if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
           echo "Tag $TAG already exists; skipping creation"
