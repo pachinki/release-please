@@ -64,7 +64,7 @@ permissions:
 jobs:
   dry-run:
     name: Compute Next Version (No Tagging)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       predicted_tag: ${{ steps.predict.outputs.predicted_tag }}
       predicted_version: ${{ steps.predict.outputs.predicted_version }}
