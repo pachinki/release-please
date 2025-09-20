@@ -315,7 +315,8 @@ runs:
           echo "Normalized forward baseline tag to $LAST_TAG" | tee -a rp-dry-run.log
         fi
         IFS=. read -r MAJ MIN PAT <<< "$LAST_VER"
-        PR_COMMITS=$(git log --pretty=format:%s origin/$TARGET..HEAD || true)
+        PR_COMMITS_FULL=$(git log --pretty=format:'%s%n%b----ENDCOMMIT----' origin/$TARGET..HEAD || true)
+        PR_COMMITS=$(echo "$PR_COMMITS_FULL" | sed -n '/----ENDCOMMIT----/!p' | grep -v '----ENDCOMMIT----' || true)
         PR_COUNT=$(echo "$PR_COMMITS" | grep -c '.' || true)
         echo "PR-only commit subjects ($PR_COUNT):" | tee -a rp-dry-run.log
         echo "$PR_COMMITS" | sed 's/^/  - /' | tee -a rp-dry-run.log
@@ -327,12 +328,17 @@ runs:
           exit 0
         fi
         BUMP=none
-        if echo "$PR_COMMITS" | grep -Eiq 'BREAKING CHANGE|!:'; then
+        if echo "$PR_COMMITS_FULL" | grep -Eiq 'BREAKING CHANGE|!:'; then
           BUMP=major
-        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*feat(\(|:)' ; then
+        elif echo "$PR_COMMITS_FULL" | grep -Eiq '^[[:space:]]*feat(\(|:)' ; then
           BUMP=minor
-        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*(fix|perf)(\(|:)' ; then
-          BUMP=patch
+        else
+          # Patch-level heuristics: fix/perf/refactor/chore(dep)/security
+          if echo "$PR_COMMITS_FULL" | grep -Eiq '^[[:space:]]*(fix|perf|refactor|chore|ci|build)(\(|:)' ; then
+            BUMP=patch
+          elif echo "$PR_COMMITS_FULL" | grep -Eiq 'bugfix|hotfix'; then
+            BUMP=patch
+          fi
         fi
         case $BUMP in
           major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
