@@ -1,5 +1,42 @@
 # Changelog
 
+## [2.2.6](https://github.com/pachinki/release-please/compare/v2.2.5...v2.2.6) (2025-09-20)
+
+
+### Bug Fixes
+
+* updated config json ([#22](https://github.com/pachinki/release-please/issues/22)) ([579c876](https://github.com/pachinki/release-please/commit/579c8764a133426c92aae814f1a30f3228bba6b1))
+
+## [2.2.5](https://github.com/pachinki/release-please/compare/v2.2.4...v2.2.5) (2025-09-20)
+
+
+### Bug Fixes
+
+* renamed workflows ([88b8a6c](https://github.com/pachinki/release-please/commit/88b8a6c99359ae7cac19171afa8f6829e68b6a0c))
+* renamed workflows ([b2d7432](https://github.com/pachinki/release-please/commit/b2d74326558ef18c4aa03150bf0e5681c6d83136))
+
+## [2.2.4](https://github.com/pachinki/release-please/compare/v2.2.3...v2.2.4) (2025-09-20)
+
+
+### Bug Fixes
+
+* fix dry run action ([2b0b801](https://github.com/pachinki/release-please/commit/2b0b801419509395b1b1e6514b9aca19bcf1a07f))
+* fix dry run action ([ec24d52](https://github.com/pachinki/release-please/commit/ec24d52da1922f262b769a572478fd3defd452e5))
+* fix dry run action ([70e86b6](https://github.com/pachinki/release-please/commit/70e86b6b7ad668c5efc7a67c7d44e3fc8aa89a19))
+* fixing dry run action ([efd7447](https://github.com/pachinki/release-please/commit/efd74476f681877583bb6e297ec3ec93dcb20025))
+* test feature 10 ([c64ea34](https://github.com/pachinki/release-please/commit/c64ea348414f4a854ba3fa797813a4ef6a412721))
+* test feature 10 ([e57a23b](https://github.com/pachinki/release-please/commit/e57a23b0e1d999ea50beef45eeecde1691b9ea84))
+* updated dry run action ([d80e9c7](https://github.com/pachinki/release-please/commit/d80e9c756705a9587d9d11aaba49b71541f1cf60))
+* updated dry run action ([18f5778](https://github.com/pachinki/release-please/commit/18f5778bd6ced49ef42c07244620408317b33bc8))
+
+## [2.2.3](https://github.com/pachinki/release-please/compare/v2.2.2...v2.2.3) (2025-09-20)
+
+
+### Bug Fixes
+
+* dry run misreporting ([e23d86f](https://github.com/pachinki/release-please/commit/e23d86fc709d97b81a1dc66daab706c52af15d31))
+* test feature 9 ([7fca9a4](https://github.com/pachinki/release-please/commit/7fca9a4ac40468728f328416b2db54ac7bdd4199))
+
 ## [2.2.2](https://github.com/pachinki/release-please/compare/v2.2.1...v2.2.2) (2025-09-20)
 
 
