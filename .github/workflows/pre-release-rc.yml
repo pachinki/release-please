@@ -71,7 +71,7 @@ permissions:
 jobs:
   prerelease:
     name: Create / Increment RC Tag
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     outputs:
       base_version: ${{ steps.rc.outputs.base_version }}
       rc_number: ${{ steps.rc.outputs.rc_number }}
