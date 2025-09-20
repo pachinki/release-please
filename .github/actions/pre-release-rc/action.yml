@@ -164,13 +164,34 @@ runs:
       run: |
         set -euo pipefail
         BASE='${{ steps.compute-base.outputs.base_version }}'
+        
+        echo "DEBUG: BASE=$BASE"
+        
+        if [ -z "$BASE" ]; then
+          echo "Error: BASE version is empty"
+          exit 1
+        fi
+        
         LAST_RC=$(git tag --list "v${BASE}-rc.*" | sort -V | tail -n1)
+        echo "DEBUG: LAST_RC=$LAST_RC"
+        
         if [ -z "$LAST_RC" ]; then
           NEXT=1
+          echo "DEBUG: No previous RC found, using NEXT=1"
         else
           LAST_NUM=${LAST_RC##*-rc.}
+          echo "DEBUG: LAST_NUM=$LAST_NUM"
+          
+          # Validate LAST_NUM is a number
+          if ! [[ "$LAST_NUM" =~ ^[0-9]+$ ]]; then
+            echo "Error: LAST_NUM is not a valid number: $LAST_NUM"
+            exit 1
+          fi
+          
           NEXT=$((LAST_NUM + 1))
+          echo "DEBUG: Computed NEXT=$NEXT"
         fi
+        
         echo "rc_number=$NEXT" >> $GITHUB_OUTPUT
         echo "rc_tag=v${BASE}-rc.$NEXT" >> $GITHUB_OUTPUT
         echo "Next RC: v${BASE}-rc.$NEXT (previous: ${LAST_RC:-none})"
