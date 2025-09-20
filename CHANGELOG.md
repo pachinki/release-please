@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.1](https://github.com/pachinki/release-please/compare/v3.0.0...v3.0.1) (2025-09-20)
+
+
+### Bug Fixes
+
+* resolve RC workflow YAML template validation errors ([587bfec](https://github.com/pachinki/release-please/commit/587bfec102771eb593515854a6dd2213bd3fd259)), closes [#33](https://github.com/pachinki/release-please/issues/33)
+
 ## [3.0.0](https://github.com/pachinki/release-please/compare/v2.3.0...v3.0.0) (2025-09-20)
 
 
