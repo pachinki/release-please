@@ -181,7 +181,20 @@ runs:
         # Attempt to extract version patterns
         VERSION=""
         # Discover latest existing tag early for consistent outputs
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo '')
+        DEFAULT_BRANCH='${{ inputs['target-branch'] }}'
+        git fetch origin "$DEFAULT_BRANCH" --tags --force >/dev/null 2>&1 || true
+        # Enumerate semver tags reachable from the latest default branch commit, not limited by PR branch ancestry.
+        CANDIDATES=$(git tag --merged "origin/$DEFAULT_BRANCH" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+        if [ -n "$CANDIDATES" ]; then
+          # Portable numeric semver sort (avoids GNU sort -V dependency)
+          LAST_TAG=$(echo "$CANDIDATES" | awk -F'[v.]' '{printf "%s %d %d %d\n",$0,$2,$3,$4}' | sort -k2,2n -k3,3n -k4,4n | tail -n1 | cut -d' ' -f1)
+          echo "Baseline tag candidates (origin/$DEFAULT_BRANCH merged):" | tee -a rp-dry-run.log
+          echo "$CANDIDATES" | sed 's/^/  - /' | tee -a rp-dry-run.log
+          echo "Chosen baseline tag: $LAST_TAG" | tee -a rp-dry-run.log
+        else
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo '')
+          echo "Fallback to git describe baseline: ${LAST_TAG:-<none>}" | tee -a rp-dry-run.log
+        fi
         LAST_VER=${LAST_TAG#v}
         # Normalize LAST_VER to three-part semver if it is shorter (pad with .0)
         if [[ -n "$LAST_VER" ]]; then
@@ -281,7 +294,17 @@ runs:
         else
           echo "branch_behind_default=false" >> $GITHUB_OUTPUT
         fi
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')
+        # Recompute baseline from default branch merged tags (independent of PR branch ancestry)
+        CANDIDATES=$(git tag --merged "origin/$TARGET" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+        if [ -n "$CANDIDATES" ]; then
+          LAST_TAG=$(echo "$CANDIDATES" | awk -F'[v.]' '{printf "%s %d %d %d\n",$0,$2,$3,$4}' | sort -k2,2n -k3,3n -k4,4n | tail -n1 | cut -d' ' -f1)
+          echo "Forward baseline tag candidates (origin/$TARGET merged):" | tee -a rp-dry-run.log
+          echo "$CANDIDATES" | sed 's/^/  - /' | tee -a rp-dry-run.log
+          echo "Chosen forward baseline tag: $LAST_TAG" | tee -a rp-dry-run.log
+        else
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')
+          echo "Forward baseline fallback to git describe: $LAST_TAG" | tee -a rp-dry-run.log
+        fi
         LAST_VER=${LAST_TAG#v}
         # Normalize LAST_VER to three-part semver
         if [[ ! "$LAST_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
