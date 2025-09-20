@@ -1,4 +1,4 @@
-name: Pre-Release (RC Tag / Reusable)
+name: Pre-Release (RC Tag)
 
 on:
   workflow_call:

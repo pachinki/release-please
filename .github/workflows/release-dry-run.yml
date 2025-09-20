@@ -1,4 +1,4 @@
-name: Release (Dry Run / Reusable)
+name: Release (Dry Run)
 
 on:
   # Reusable invocation from other workflows
