@@ -160,6 +160,17 @@ runs:
             VERSION=$(echo "$CANDIDATE" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
         done
 
+        # Capture the latest existing tag to avoid mis-reporting it as a NEW prediction.
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo '')
+        LAST_VER=${LAST_TAG#v}
+
+        # If the parsed VERSION equals the current tag version, treat as no bump (dry-run saw an existing release PR).
+        if [ -n "$VERSION" ] && [ -n "$LAST_VER" ] && [ "$VERSION" = "$LAST_VER" ]; then
+          echo "Parsed version $VERSION matches latest tag $LAST_TAG -> interpreting as 'no new release'." | tee -a rp-dry-run.log
+          VERSION="" # reset so fallback scan can decide if there's an actual bump based on commits (below)
+          TAG=""
+        fi
+
         if [ -n "$VERSION" ]; then
           TAG="v$VERSION"
           IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
