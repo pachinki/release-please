@@ -5,3 +5,4 @@ test feature 4 - bump up major version
 test feature 5 - bump up major 2 feature
 test feature 6 - bump up major 2 feature again
 test feature 7 - bump up 2.2.0 to 2.2.1
+test feature 8 - bump up 2.2.1 to 2.2.2
