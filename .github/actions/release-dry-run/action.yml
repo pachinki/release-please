@@ -5,37 +5,6 @@ branding:
   icon: "tag"
   color: "blue"
 
-# Usage examples:
-# 1. Direct in a workflow job:
-#    jobs:
-#      next-version:
-#        runs-on: self-hosted
-#        steps:
-#          - uses: actions/checkout@v4
-#          - id: calc
-#            uses: ./.github/actions/release-dry-run
-#            with:
-#              target-branch: main
-#          - run: echo "Predicted=${{ steps.calc.outputs.predicted_tag }}"
-#
-# 2. From another repository referencing this repo:
-#    - id: calc
-#      uses: your-org/your-repo/.github/actions/release-dry-run@main
-#
-# 3. Combined with a matrix (call composite directly for best performance):
-#    strategy:
-#      matrix:
-#        service: [api-a, api-b]
-#    steps:
-#      - uses: actions/checkout@v4
-#      - uses: ./.github/actions/release-dry-run
-#        with:
-#          path: ${{ matrix.service }}
-
-# Composite so it can be used in any workflow job.
-# Requirements: GITHUB_TOKEN available in env or secrets.
-# Outputs: predicted_tag, predicted_version, major, minor, patch, final_exit_code
-
 inputs:
   target-branch:
     description: "Target (default) branch to compare against"
@@ -75,24 +44,15 @@ inputs:
     default: "false"
 
 outputs:
-  predicted_tag:
-    description: "Predicted tag (vX.Y.Z)"
-    value: ${{ steps.parse.outputs.predicted_tag }}
-  predicted_version:
-    description: "Predicted version (X.Y.Z)"
-    value: ${{ steps.parse.outputs.predicted_version }}
-  major:
-    description: "Major component"
-    value: ${{ steps.parse.outputs.major }}
-  minor:
-    description: "Minor component"
-    value: ${{ steps.parse.outputs.minor }}
-  patch:
-    description: "Patch component"
-    value: ${{ steps.parse.outputs.patch }}
-  final_exit_code:
-    description: "Exit code of release-please command"
-    value: ${{ steps.parse.outputs.final_exit_code }}
+  current_tag:
+    description: "Current latest tag (vX.Y.Z)"
+    value: ${{ steps.baseline.outputs.current_tag }}
+  next_tag:
+    description: "Next tag after merge (vX.Y.Z)"
+    value: ${{ steps.forward_predict.outputs.next_tag }}
+  bump_type:
+    description: "Semantic bump type (none|patch|minor|major)"
+    value: ${{ steps.forward_predict.outputs.bump_type }}
 
 runs:
   using: "composite"
@@ -114,112 +74,72 @@ runs:
         git fetch --prune --tags --unshallow 2>/dev/null || true
         # Fallback shallow fetch of tags if unshallow not possible
         git fetch --prune --tags --depth=200 2>/dev/null || true
+        # Make sure we have the latest default branch ref (important for PR context)
+        git fetch origin "${{ inputs['target-branch'] }}" --depth=200 2>/dev/null || true
 
-    - name: Run release-please dry run
-      id: run
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-        DEFAULT_BRANCH: ${{ inputs['target-branch'] }}
-        RELEASE_TYPE: ${{ inputs['release-type'] }}
-        PACKAGE_NAME: ${{ inputs['package-name'] }}
-        RELEASE_PATH: ${{ inputs.path }}
+    - name: Get current tag baseline
+      id: baseline
       shell: bash
       run: |
         set -euo pipefail
-        echo "Running release-please with: branch=$DEFAULT_BRANCH type=$RELEASE_TYPE package=$PACKAGE_NAME path=$RELEASE_PATH"
-        set +e
-        release-please release-pr \
-          --repo-url ${{ github.repository }} \
-          --token "$GITHUB_TOKEN" \
-          --api-url "${{ github.api_url }}" \
-          --graphql-url "${{ github.graphql_url }}" \
-          --target-branch "$DEFAULT_BRANCH" \
-          --release-type "$RELEASE_TYPE" \
-          --package-name "$PACKAGE_NAME" \
-          --path "$RELEASE_PATH" \
-          --dry-run --debug | tee rp-dry-run.log
-        RC=$?
-        set -e
-        echo "exit_code=$RC" >> $GITHUB_OUTPUT
+        DEFAULT_BRANCH='${{ inputs['target-branch'] }}'
+        git fetch origin "$DEFAULT_BRANCH" --tags --force >/dev/null 2>&1 || true
+        # Find highest semver tag on default branch
+        CANDIDATES=$(git tag --merged "origin/$DEFAULT_BRANCH" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+        if [ -n "$CANDIDATES" ]; then
+          CURRENT_TAG=$(echo "$CANDIDATES" | awk -F'[v.]' '{printf "%s %d %d %d\n",$0,$2,$3,$4}' | sort -k2,2n -k3,3n -k4,4n | tail -n1 | cut -d' ' -f1)
+        else
+          CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')
+        fi
+        echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
+        echo "Current tag: $CURRENT_TAG" | tee -a baseline.log
 
-    - name: Parse predicted version
-      id: parse
+    - name: Predict next tag after merge
+      id: forward_predict
+      if: github.event_name == 'pull_request'
       shell: bash
       run: |
         set -euo pipefail
-        TAG="" # initialize to avoid unbound variable if no bump
-        # Attempt to extract version patterns
-        VERSION=""
-        for pattern in \
-          'chore: release [0-9]\+\.[0-9]\+\.[0-9]\+' \
-          'Releasing [0-9]\+\.[0-9]\+\.[0-9]\+' \
-          'release PR created for version [0-9]\+\.[0-9]\+\.[0-9]\+' \
-          'creating release PR for: [0-9]\+\.[0-9]\+\.[0-9]\+'; do
-            CANDIDATE=$(grep -Eo "$pattern" rp-dry-run.log | tail -n1 || true)
-            [ -n "$CANDIDATE" ] || continue
-            VERSION=$(echo "$CANDIDATE" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
-        done
-
-        # Capture the latest existing tag to avoid mis-reporting it as a NEW prediction.
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo '')
-        LAST_VER=${LAST_TAG#v}
-
-        # If the parsed VERSION equals the current tag version, treat as no bump (dry-run saw an existing release PR).
-        if [ -n "$VERSION" ] && [ -n "$LAST_VER" ] && [ "$VERSION" = "$LAST_VER" ]; then
-          echo "Parsed version $VERSION matches latest tag $LAST_TAG -> interpreting as 'no new release'." | tee -a rp-dry-run.log
-          VERSION="" # reset so fallback scan can decide if there's an actual bump based on commits (below)
-          TAG=""
+        TARGET='${{ inputs['target-branch'] }}'
+        CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
+        CURRENT_VER=${CURRENT_TAG#v}
+        
+        # Normalize to three-part semver
+        if [[ ! "$CURRENT_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          IFS=. read -r LV_M LV_m LV_p <<< "$CURRENT_VER"
+          LV_M=${LV_M:-0}; LV_m=${LV_m:-0}; LV_p=${LV_p:-0}
+          CURRENT_VER="$LV_M.$LV_m.$LV_p"
         fi
-
-        if [ -n "$VERSION" ]; then
-          TAG="v$VERSION"
-          IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
+        IFS=. read -r MAJ MIN PAT <<< "$CURRENT_VER"
+        
+        # Check PR-only commits for bump type
+        PR_COMMITS=$(git log --pretty=format:'%s%n%b' origin/$TARGET..HEAD || true)
+        if [ -z "$PR_COMMITS" ]; then
+          BUMP=none
+        elif echo "$PR_COMMITS" | grep -Eiq 'BREAKING CHANGE|!:'; then
+          BUMP=major
+        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*feat(\(|:)' ; then
+          BUMP=minor
+        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*(fix|perf|refactor|chore|ci|build)(\(|:)|bugfix|hotfix' ; then
+          BUMP=patch
         else
-          echo "No version parsed; attempting fallback conventional commit scan" | tee -a rp-dry-run.log
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo '')
-            if [ -z "$LAST_TAG" ]; then
-            # No existing tag; start from 0.0.0 and scan all commits
-            BASE_VER="0.0.0"
-            COMMITS=$(git log --pretty=format:%s || true)
-          else
-            BASE_VER=${LAST_TAG#v}
-            COMMITS=$(git log --pretty=format:%s "${LAST_TAG}..HEAD" || true)
-          fi
-          IFS=. read -r BASE_M BASE_m BASE_p <<< "$BASE_VER"
-          if echo "$COMMITS" | grep -Eq 'BREAKING CHANGE|!:'; then
-            BASE_M=$((BASE_M+1)); BASE_m=0; BASE_p=0
-          elif echo "$COMMITS" | grep -Eq '^feat'; then
-            BASE_m=$((BASE_m+1)); BASE_p=0
-          elif echo "$COMMITS" | grep -Eq '^fix|^perf'; then
-            BASE_p=$((BASE_p+1))
-          else
-            BASE_M="" # no bump
-          fi
-          if [ -n "$BASE_M" ]; then
-            VERSION="$BASE_M.$BASE_m.$BASE_p"
-            TAG="v$VERSION"
-            MAJOR=$BASE_M; MINOR=$BASE_m; PATCH=$BASE_p
-          fi
+          BUMP=none
         fi
-
-        if [ -n "$VERSION" ]; then
-          echo "predicted_tag=$TAG" >> $GITHUB_OUTPUT
-          echo "predicted_version=$VERSION" >> $GITHUB_OUTPUT
-          echo "major=$MAJOR" >> $GITHUB_OUTPUT
-          echo "minor=$MINOR" >> $GITHUB_OUTPUT
-          echo "patch=$PATCH" >> $GITHUB_OUTPUT
-          # Normalize non-zero (1) exit when we successfully derived a version.
-          RAW_RC='${{ steps.run.outputs.exit_code }}'
-          if [ "$RAW_RC" = "1" ]; then
-            echo "final_exit_code=0" >> $GITHUB_OUTPUT
-          else
-            echo "final_exit_code=$RAW_RC" >> $GITHUB_OUTPUT
-          fi
-        else
-          # No version predicted; surface original exit code.
-          echo "final_exit_code=${{ steps.run.outputs.exit_code }}" >> $GITHUB_OUTPUT
-        fi
-        echo "Summary: tag=${TAG:-none} version=${VERSION:-none}" || true
+        
+        # Calculate next version
+        case $BUMP in
+          major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
+          minor) MIN=$((MIN+1)); PAT=0 ;;
+          patch) PAT=$((PAT+1)) ;;
+          none) : ;;
+        esac
+        
+        NEXT_VER="$MAJ.$MIN.$PAT"
+        NEXT_TAG="v$NEXT_VER"
+        
+        echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
+        echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
+        echo "Next tag after merge: $NEXT_TAG (bump: $BUMP)" | tee -a baseline.log
 
     - name: Compute artifact name
       id: artifact_name
@@ -243,32 +163,30 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.artifact_name.outputs.value }}
-        path: rp-dry-run.log
+        path: baseline.log
         if-no-files-found: warn
 
-    - name: PR Comment (Predicted Version)
+    - name: PR Comment (Simple Version)
       if: ${{ github.event_name == 'pull_request' && inputs['pr-comment'] == 'true' }}
       uses: actions/github-script@v7
       with:
         github-token: ${{ github.token }}
         script: |
           const marker = '<!-- ' + `${{ inputs['pr-comment-marker'] }}` + ' -->';
-          const tag = `${{ steps.parse.outputs.predicted_tag }}` || 'none';
-          const version = `${{ steps.parse.outputs.predicted_version }}` || 'none';
-          const major = `${{ steps.parse.outputs.major }}` || '-';
-          const minor = `${{ steps.parse.outputs.minor }}` || '-';
-          const patch = `${{ steps.parse.outputs.patch }}` || '-';
-          const exitCode = `${{ steps.run.outputs.exit_code }}`;
-          const showExit = `${{ inputs['show-raw-exit-code'] }}` === 'true';
-          const rows = [
-            `| Predicted Tag | \`${tag}\` |`,
-            `| Version | \`${version}\` |`,
-            `| Major | \`${major}\` |`,
-            `| Minor | \`${minor}\` |`,
-            `| Patch | \`${patch}\` |`
-          ];
-          if (showExit) rows.push(`| Raw Exit Code | \`${exitCode}\` |`);
-          const body = `${marker}\n### Release Dry Run Result\n\n| Field | Value |\n|-------|-------|\n${rows.join('\n')}\n\n_This comment is automatically updated._`;
+          const currentTag = `${{ steps.baseline.outputs.current_tag }}` || 'none';
+          const nextTag = `${{ steps.forward_predict.outputs.next_tag }}` || 'none';
+          const bumpType = `${{ steps.forward_predict.outputs.bump_type }}` || 'none';
+          
+          const body = marker + `
+          ### Release Dry Run Result
+
+          | Field | Value |
+          |-------|-------|
+          | Current Tag | \`${currentTag}\` |
+          | Next Tag After Merge | \`${nextTag}\` |
+          | Bump Type | \`${bumpType}\` |
+
+          _Comment updates automatically on each run._`;
 
           const {owner, repo} = context.repo;
           const issue_number = context.issue.number;
@@ -288,14 +206,9 @@ runs:
       shell: bash
       run: |
         {
-          echo '### Release Dry Run (Composite Action)';
+          echo '### Release Dry Run';
           echo '';
-          echo '* Predicted tag: `${{ steps.parse.outputs.predicted_tag }}`';
-          echo '* Version: `${{ steps.parse.outputs.predicted_version }}`';
-          echo '* Major: `${{ steps.parse.outputs.major }}` Minor: `${{ steps.parse.outputs.minor }}` Patch: `${{ steps.parse.outputs.patch }}`';
-          echo '* Exit Code: `${{ steps.run.outputs.exit_code }}`';
-          if [ -z "${{ steps.parse.outputs.predicted_tag }}" ]; then
-            echo '';
-            echo '> No release bump detected.';
-          fi
+          echo '* Current tag: `${{ steps.baseline.outputs.current_tag }}`';
+          echo '* Next tag: `${{ steps.forward_predict.outputs.next_tag }}`';
+          echo '* Bump type: `${{ steps.forward_predict.outputs.bump_type }}`';
         } >> $GITHUB_STEP_SUMMARY
