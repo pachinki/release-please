@@ -139,21 +139,28 @@ runs:
           BASE="${PRED_TAG#v}"; SOURCE="predicted"
         else
           echo "Falling back to commit scan heuristic" >&2
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')
+          # Find the latest non-RC tag (exclude RC tags from base version calculation)
+          LAST_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -v -- '-rc\.' | head -n1 || echo 'v0.0.0')
+          echo "DEBUG: LAST_TAG=$LAST_TAG"
           BASE_VER=${LAST_TAG#v}
+          echo "DEBUG: BASE_VER=$BASE_VER"
           IFS=. read -r M m p <<< "$BASE_VER"
+          echo "DEBUG: M=$M m=$m p=$p"
           COMMITS=$(git log --pretty=format:%s ${LAST_TAG}..HEAD || true)
+          echo "DEBUG: COMMITS found:"
+          echo "$COMMITS"
           if echo "$COMMITS" | grep -Eq 'BREAKING CHANGE|!:'; then
-            M=$((M+1)); m=0; p=0
+            M=$((M+1)); m=0; p=0; echo "DEBUG: Breaking change detected, bumping major"
           elif echo "$COMMITS" | grep -Eq '^feat'; then
-            m=$((m+1)); p=0
+            m=$((m+1)); p=0; echo "DEBUG: Feature detected, bumping minor"
           elif echo "$COMMITS" | grep -Eq '^fix|^perf'; then
-            p=$((p+1))
+            p=$((p+1)); echo "DEBUG: Fix/perf detected, bumping patch"
           else
             echo "Unable to determine semantic bump (no qualifying commits)." >&2
             exit 1
           fi
           BASE="$M.$m.$p"; SOURCE="fallback"
+          echo "DEBUG: Computed BASE=$BASE"
         fi
         echo "base_version=$BASE" >> $GITHUB_OUTPUT
         echo "Base version source=$SOURCE"
@@ -164,30 +171,50 @@ runs:
       run: |
         set -euo pipefail
         BASE='${{ steps.compute-base.outputs.base_version }}'
+
+        echo "DEBUG: BASE=$BASE"
+
+        if [ -z "$BASE" ]; then
+          echo "Error: BASE version is empty"
+          exit 1
+        fi
+
         LAST_RC=$(git tag --list "v${BASE}-rc.*" | sort -V | tail -n1)
+        echo "DEBUG: LAST_RC=$LAST_RC"
+
         if [ -z "$LAST_RC" ]; then
           NEXT=1
+          echo "DEBUG: No previous RC found, using NEXT=1"
         else
           LAST_NUM=${LAST_RC##*-rc.}
+          echo "DEBUG: LAST_NUM=$LAST_NUM"
+          
+          # Validate LAST_NUM is a number
+          if ! [[ "$LAST_NUM" =~ ^[0-9]+$ ]]; then
+            echo "Error: LAST_NUM is not a valid number: $LAST_NUM"
+            exit 1
+          fi
+          
           NEXT=$((LAST_NUM + 1))
+          echo "DEBUG: Computed NEXT=$NEXT"
         fi
+
         echo "rc_number=$NEXT" >> $GITHUB_OUTPUT
         echo "rc_tag=v${BASE}-rc.$NEXT" >> $GITHUB_OUTPUT
         echo "Next RC: v${BASE}-rc.$NEXT (previous: ${LAST_RC:-none})"
 
     - name: Create RC tag
       shell: bash
-      env:
-        GIT_USER_NAME: ${{ vars.RC_GIT_USER_NAME }}
-        GIT_USER_EMAIL: ${{ vars.RC_GIT_USER_EMAIL }}
       run: |
         set -euo pipefail
         TAG='${{ steps.compute-rc.outputs.rc_tag }}'
+
+        # Set git user config with fallback defaults
         if ! git config user.email >/dev/null; then
-          git config user.email "${GIT_USER_EMAIL:-releases-bot@your-domain.example}"
+          git config user.email "releases-bot@example.com"
         fi
         if ! git config user.name >/dev/null; then
-          git config user.name "${GIT_USER_NAME:-Release Automation}"
+          git config user.name "Release Automation"
         fi
         if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
           echo "Tag $TAG already exists; skipping creation"
