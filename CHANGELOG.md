@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.3](https://github.com/pachinki/release-please/compare/v2.2.2...v2.2.3) (2025-09-20)
+
+
+### Bug Fixes
+
+* dry run misreporting ([e23d86f](https://github.com/pachinki/release-please/commit/e23d86fc709d97b81a1dc66daab706c52af15d31))
+* test feature 9 ([7fca9a4](https://github.com/pachinki/release-please/commit/7fca9a4ac40468728f328416b2db54ac7bdd4199))
+
 ## [2.2.2](https://github.com/pachinki/release-please/compare/v2.2.1...v2.2.2) (2025-09-20)
 
 
