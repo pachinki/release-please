@@ -81,6 +81,12 @@ outputs:
   predicted_version:
     description: "Predicted version (X.Y.Z)"
     value: ${{ steps.parse.outputs.predicted_version }}
+  latest_existing_tag:
+    description: "Latest existing tag discovered in repo (vX.Y.Z or empty)"
+    value: ${{ steps.parse.outputs.latest_existing_tag }}
+  latest_existing_version:
+    description: "Latest existing version (X.Y.Z) corresponding to latest_existing_tag"
+    value: ${{ steps.parse.outputs.latest_existing_version }}
   forward_predicted_tag:
     description: "Forward-looking predicted tag (includes PR-only commits)"
     value: ${{ steps.forward_predict.outputs.forward_predicted_tag }}
@@ -174,6 +180,19 @@ runs:
         TAG="" # initialize to avoid unbound variable if no bump
         # Attempt to extract version patterns
         VERSION=""
+        # Discover latest existing tag early for consistent outputs
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo '')
+        LAST_VER=${LAST_TAG#v}
+        # Normalize LAST_VER to three-part semver if it is shorter (pad with .0)
+        if [[ -n "$LAST_VER" ]]; then
+          if [[ ! "$LAST_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            IFS=. read -r LV_M LV_m LV_p <<< "$LAST_VER"
+            LV_M=${LV_M:-0}; LV_m=${LV_m:-0}; LV_p=${LV_p:-0}
+            LAST_VER="$LV_M.$LV_m.$LV_p"
+            LAST_TAG="v$LAST_VER"
+            echo "Normalized latest existing tag to $LAST_TAG" | tee -a rp-dry-run.log
+          fi
+        fi
         for pattern in \
           'chore: release [0-9]\+\.[0-9]\+\.[0-9]\+' \
           'Releasing [0-9]\+\.[0-9]\+\.[0-9]\+' \
@@ -183,11 +202,6 @@ runs:
             [ -n "$CANDIDATE" ] || continue
             VERSION=$(echo "$CANDIDATE" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
         done
-
-        # Capture the latest existing tag to avoid mis-reporting it as a NEW prediction.
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo '')
-        LAST_VER=${LAST_TAG#v}
-
         # If the parsed VERSION equals the current tag version, treat as no bump (dry-run saw an existing release PR).
         if [ -n "$VERSION" ] && [ -n "$LAST_VER" ] && [ "$VERSION" = "$LAST_VER" ]; then
           echo "Parsed version $VERSION matches latest tag $LAST_TAG -> interpreting as 'no new release'." | tee -a rp-dry-run.log
@@ -200,8 +214,7 @@ runs:
           IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
         else
           echo "No version parsed; attempting fallback conventional commit scan" | tee -a rp-dry-run.log
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo '')
-            if [ -z "$LAST_TAG" ]; then
+          if [ -z "$LAST_TAG" ]; then
             # No existing tag; start from 0.0.0 and scan all commits
             BASE_VER="0.0.0"
             COMMITS=$(git log --pretty=format:%s || true)
@@ -210,12 +223,12 @@ runs:
             COMMITS=$(git log --pretty=format:%s "${LAST_TAG}..HEAD" || true)
           fi
           IFS=. read -r BASE_M BASE_m BASE_p <<< "$BASE_VER"
-          if echo "$COMMITS" | grep -Eq 'BREAKING CHANGE|!:'; then
-            BASE_M=$((BASE_M+1)); BASE_m=0; BASE_p=0
-          elif echo "$COMMITS" | grep -Eq '^feat'; then
-            BASE_m=$((BASE_m+1)); BASE_p=0
-          elif echo "$COMMITS" | grep -Eq '^fix|^perf'; then
-            BASE_p=$((BASE_p+1))
+          if echo "$COMMITS" | grep -Eiq 'BREAKING CHANGE|!:'; then
+            BASE_M=$((BASE_M+1)); BASE_m=0; BASE_p=0; FALLBACK_BUMP=major
+          elif echo "$COMMITS" | grep -Eiq '^[[:space:]]*feat(\(|:)' ; then
+            BASE_m=$((BASE_m+1)); BASE_p=0; FALLBACK_BUMP=minor
+          elif echo "$COMMITS" | grep -Eiq '^[[:space:]]*(fix|perf)(\(|:)' ; then
+            BASE_p=$((BASE_p+1)); FALLBACK_BUMP=patch
           else
             BASE_M="" # no bump
           fi
@@ -223,6 +236,9 @@ runs:
             VERSION="$BASE_M.$BASE_m.$BASE_p"
             TAG="v$VERSION"
             MAJOR=$BASE_M; MINOR=$BASE_m; PATCH=$BASE_p
+            echo "Fallback bump detected ($FALLBACK_BUMP) -> $VERSION" | tee -a rp-dry-run.log
+          else
+            echo "Fallback scan found no bump-worthy commits." | tee -a rp-dry-run.log
           fi
         fi
 
@@ -243,6 +259,9 @@ runs:
           # No version predicted; surface original exit code.
           echo "final_exit_code=${{ steps.run.outputs.exit_code }}" >> $GITHUB_OUTPUT
         fi
+        # Always emit latest existing tag/version for display purposes
+        echo "latest_existing_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+        echo "latest_existing_version=$LAST_VER" >> $GITHUB_OUTPUT
         echo "Summary: tag=${TAG:-none} version=${VERSION:-none}" || true
 
     - name: Forward predict (post-merge simulation)
@@ -264,8 +283,19 @@ runs:
         fi
         LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')
         LAST_VER=${LAST_TAG#v}
+        # Normalize LAST_VER to three-part semver
+        if [[ ! "$LAST_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          IFS=. read -r LV_M LV_m LV_p <<< "$LAST_VER"
+          LV_M=${LV_M:-0}; LV_m=${LV_m:-0}; LV_p=${LV_p:-0}
+          LAST_VER="$LV_M.$LV_m.$LV_p"
+          LAST_TAG="v$LAST_VER"
+          echo "Normalized forward baseline tag to $LAST_TAG" | tee -a rp-dry-run.log
+        fi
         IFS=. read -r MAJ MIN PAT <<< "$LAST_VER"
         PR_COMMITS=$(git log --pretty=format:%s origin/$TARGET..HEAD || true)
+        PR_COUNT=$(echo "$PR_COMMITS" | grep -c '.' || true)
+        echo "PR-only commit subjects ($PR_COUNT):" | tee -a rp-dry-run.log
+        echo "$PR_COMMITS" | sed 's/^/  - /' | tee -a rp-dry-run.log
         if [ -z "$PR_COMMITS" ]; then
           echo "No PR-only commits; forward version = $LAST_VER" | tee -a rp-dry-run.log
           echo "forward_bump_type=none" >> $GITHUB_OUTPUT
@@ -274,11 +304,11 @@ runs:
           exit 0
         fi
         BUMP=none
-        if echo "$PR_COMMITS" | grep -Eq 'BREAKING CHANGE|!:'; then
+        if echo "$PR_COMMITS" | grep -Eiq 'BREAKING CHANGE|!:'; then
           BUMP=major
-        elif echo "$PR_COMMITS" | grep -Eq '^feat'; then
+        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*feat(\(|:)' ; then
           BUMP=minor
-        elif echo "$PR_COMMITS" | grep -Eq '^fix|^perf'; then
+        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*(fix|perf)(\(|:)' ; then
           BUMP=patch
         fi
         case $BUMP in
@@ -327,6 +357,8 @@ runs:
           const marker = '<!-- ' + `${{ inputs['pr-comment-marker'] }}` + ' -->';
           const tag = `${{ steps.parse.outputs.predicted_tag }}` || 'none';
           const version = `${{ steps.parse.outputs.predicted_version }}` || 'none';
+          const latestTag = `${{ steps.parse.outputs.latest_existing_tag }}` || 'none';
+          const latestVersion = `${{ steps.parse.outputs.latest_existing_version }}` || 'none';
           const fTag = `${{ steps.forward_predict.outputs.forward_predicted_tag }}` || 'none';
           const fVersion = `${{ steps.forward_predict.outputs.forward_predicted_version }}` || 'none';
           const fBump = `${{ steps.forward_predict.outputs.forward_bump_type }}` || 'none';
@@ -337,6 +369,8 @@ runs:
           const exitCode = `${{ steps.run.outputs.exit_code }}`;
           const showExit = `${{ inputs['show-raw-exit-code'] }}` === 'true';
           const rows = [
+            `| Latest Existing Tag | \`${latestTag || 'none'}\` |`,
+            `| Latest Existing Version | \`${latestVersion || 'none'}\` |`,
             `| Current Main Predicted Tag | \`${tag}\` |`,
             `| Current Main Predicted Version | \`${version}\` |`,
             `| Forward (Post-Merge) Tag | \`${fTag}\` |`,
@@ -348,7 +382,7 @@ runs:
           ];
           if (showExit) rows.push(`| Raw Exit Code | \`${exitCode}\` |`);
           if (behind) rows.push(`| Branch Behind Default | \`true\` |`);
-          const body = `${marker}\n### Release Dry Run Result\n\n| Field | Value |\n|-------|-------|\n${rows.join('\n')}\n\n_This comment distinguishes current default-branch state vs forward post-merge prediction. It updates automatically._`;
+          const body = `${marker}\n### Release Dry Run Result\n\n| Field | Value |\n|-------|-------|\n${rows.join('\n')}\n\n_Sections:_\n- *Latest Existing* = most recent tag on default branch\n- *Current Main Predicted* = what release-please dry-run sees on up-to-date default branch right now (may be 'none' if no new bump)\n- *Forward (Post-Merge)* = simulated version if this PR merges as-is\n\n_Comment updates automatically on each run._`;
 
           const {owner, repo} = context.repo;
           const issue_number = context.issue.number;
