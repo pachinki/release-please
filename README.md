@@ -207,14 +207,14 @@ The `Release (Dry Run)` workflow predicts the *next* semantic version **without*
 ### Operation (high‑level)
 
 1. Checkout with full history (needs prior tags).
-2. Run `release-please` CLI with `--dry-run`, `--release-type simple`, and explicit `--api-url` / `--graphql-url` (GHES support).
+2. Run `release-please` CLI with `--dry-run`, `--release-type simple`.
 3. Parse log lines for a proposed version (multiple regex patterns).
 4. If parsing fails (CLI error, wording change, API mismatch) a fallback heuristic inspects commit messages since the last tag:
    * `BREAKING CHANGE` / `!:` → major++ (reset minor & patch)
    * `feat:` → minor++ (reset patch)
    * `fix:` / `perf:` (only if no feat) → patch++
    * Otherwise → no bump (outputs empty)
-5. Expose outputs: `predicted_version`, `predicted_tag`, `major`, `minor`, `patch`, `final_exit_code`.
+5. Expose outputs: `predicted_version`.
 
 ### Outputs Cheat Sheet
 
@@ -226,38 +226,6 @@ The `Release (Dry Run)` workflow predicts the *next* semantic version **without*
 | `predicted_version = 2.0.0` | major bump | Breaking marker (`!:` or footer) detected.
 | Non‑zero `final_exit_code` + version present | tolerated error | CLI failed but parsing/fallback succeeded.
 
-### RC (Prerelease) Pairing
-
-1. Run dry run; note `predicted_version` (e.g. `1.4.0`).
-2. Dispatch `prerelease-rc` with that base → creates `v1.4.0-rc.1`.
-3. Iterate to `-rc.2`, `-rc.3`, etc.
-4. Merge to `main` → final release + floating tags are produced normally.
-
-### Local Simulation
-
-```bash
-npx --yes release-please release-pr \
-  --repo-url <owner>/<repo> \
-  --target-branch main \
-  --release-type simple \
-  --package-name workflows \
-  --path . \
-  --dry-run
-```
-
-For GHES supply host endpoints + token:
-
-```bash
-GITHUB_TOKEN=<pat> npx release-please release-pr \
-  --repo-url <org>/<repo> \
-  --api-url https://<ghe-host>/api/v3 \
-  --graphql-url https://<ghe-host>/api/graphql \
-  --target-branch main \
-  --release-type simple \
-  --package-name workflows \
-  --path . \
-  --dry-run
-```
 
 ### Fallback Limitations
 
