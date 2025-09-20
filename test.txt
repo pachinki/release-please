@@ -3,3 +3,4 @@ test feature 2 - bump up minor version
 test feature 3 - bump up fix version
 test feature 4 - bump up major version
 test feature 5 - bump up major 2 feature
+test feature 6 - bump up major 2 feature again
