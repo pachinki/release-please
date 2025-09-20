@@ -1,0 +1,102 @@
+name: Release (Dry Run / Reusable)
+
+on:
+  # Reusable invocation from other workflows
+  workflow_call:
+    # This workflow now wraps the composite action located at .github/actions/release-dry-run
+    # Prefer using the composite action directly if you only need the job steps
+    # and want to embed them inside an existing workflow matrix. Use workflow_call
+    # when you want a single standardized interface across many repos.
+    inputs:
+      target-branch:
+        description: "Default / target branch used for computing next version"
+        required: false
+        default: "main"
+        type: string
+      release-type:
+        description: "release-please release type (simple, node, python, manifest, etc.)"
+        required: false
+        default: "simple"
+        type: string
+      package-name:
+        description: "Package / component name passed to release-please (manifest key for multi-package)"
+        required: false
+        default: "workflows"
+        type: string
+      path:
+        description: "Path (subdirectory) that release-please should treat as the root"
+        required: false
+        default: "."
+        type: string
+    outputs:
+      predicted_tag:
+        description: "Predicted tag (vX.Y.Z)"
+        value: ${{ jobs.dry-run.outputs.predicted_tag }}
+      predicted_version:
+        description: "Predicted semantic version (X.Y.Z)"
+        value: ${{ jobs.dry-run.outputs.predicted_version }}
+      major:
+        description: "Predicted next major version component"
+        value: ${{ jobs.dry-run.outputs.major }}
+      minor:
+        description: "Predicted next minor version component"
+        value: ${{ jobs.dry-run.outputs.minor }}
+      patch:
+        description: "Predicted next patch version component"
+        value: ${{ jobs.dry-run.outputs.patch }}
+      final_exit_code:
+        description: "Exit code returned by release-please CLI (0 still expected even on parse fallback)"
+        value: ${{ jobs.dry-run.outputs.final_exit_code }}
+  # Keep original ad‑hoc triggers for local PR experimentation (optional)
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "release-please-config.json"
+      - "CHANGELOG.md"
+      - "**/*.sh"
+      - "**/*.md"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dry-run:
+    name: Compute Next Version (No Tagging)
+    runs-on: self-hosted
+    outputs:
+      predicted_tag: ${{ steps.predict.outputs.predicted_tag }}
+      predicted_version: ${{ steps.predict.outputs.predicted_version }}
+      major: ${{ steps.predict.outputs.major }}
+      minor: ${{ steps.predict.outputs.minor }}
+      patch: ${{ steps.predict.outputs.patch }}
+      final_exit_code: ${{ steps.predict.outputs.final_exit_code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compute next version via composite action
+        id: predict
+        uses: ./.github/actions/release-dry-run
+        with:
+          target-branch: ${{ inputs['target-branch'] || 'main' }}
+          release-type: ${{ inputs['release-type'] || 'simple' }}
+          package-name: ${{ inputs['package-name'] || 'workflows' }}
+          path: ${{ inputs['path'] || '.' }}
+
+      - name: Upload dry-run log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-please-dry-run-log
+          path: rp-dry-run.log
+          if-no-files-found: warn
+
+      - name: Fallback embed log (GHES artifact unsupported)
+        if: failure() && steps.predict.outcome == 'success'
+        run: |
+          echo '--- rp-dry-run.log (inline copy) ---' >> $GITHUB_STEP_SUMMARY
+          sed -e 's/\x1b\[[0-9;]*m//g' rp-dry-run.log | tail -n 400 >> $GITHUB_STEP_SUMMARY
+          echo '\n(End of embedded log, artifact upload failed due to GHES limitations.)' >> $GITHUB_STEP_SUMMARY

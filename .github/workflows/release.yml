@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout (full history for tagging)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          release-type: simple
+          # token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Show outputs
+        run: |
+          echo "release_created=${{ steps.release.outputs.release_created }}"
+          echo "tag=${{ steps.release.outputs.tag_name }}"
+          echo "version=${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}"
+
+      - name: Tag major and minor floating refs
+        if: ${{ steps.release.outputs.release_created  == 'true' }}
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          for t in v${{ steps.release.outputs.major }} v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}; do
+            git push origin :$t || true
+            git tag -fa $t -m "Floating tag $t -> ${{ steps.release.outputs.tag_name }}"
+            git push origin $t --force
+          done
+
+      - name: Upload artifact (if present)
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        run: |
+          if [ -f artifact/some-build-artifact.zip ]; then
+            gh release upload ${{ steps.release.outputs.tag_name }} artifact/some-build-artifact.zip
+          else
+            echo "No artifact found; skipping upload"
+          fi

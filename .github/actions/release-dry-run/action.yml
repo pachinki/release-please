@@ -1,0 +1,290 @@
+name: "Release Dry Run"
+description: "Compute the next semantic version using release-please in dry-run mode and emit parsed outputs."
+author: "cai-platform"
+branding:
+  icon: "tag"
+  color: "blue"
+
+# Usage examples:
+# 1. Direct in a workflow job:
+#    jobs:
+#      next-version:
+#        runs-on: self-hosted
+#        steps:
+#          - uses: actions/checkout@v4
+#          - id: calc
+#            uses: ./.github/actions/release-dry-run
+#            with:
+#              target-branch: main
+#          - run: echo "Predicted=${{ steps.calc.outputs.predicted_tag }}"
+#
+# 2. From another repository referencing this repo:
+#    - id: calc
+#      uses: your-org/your-repo/.github/actions/release-dry-run@main
+#
+# 3. Combined with a matrix (call composite directly for best performance):
+#    strategy:
+#      matrix:
+#        service: [api-a, api-b]
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: ./.github/actions/release-dry-run
+#        with:
+#          path: ${{ matrix.service }}
+
+# Composite so it can be used in any workflow job.
+# Requirements: GITHUB_TOKEN available in env or secrets.
+# Outputs: predicted_tag, predicted_version, major, minor, patch, final_exit_code
+
+inputs:
+  target-branch:
+    description: "Target (default) branch to compare against"
+    required: false
+    default: "main"
+  release-type:
+    description: "release-please release type (simple|manifest|node|python|...)"
+    required: false
+    default: "simple"
+  package-name:
+    description: "Package / manifest key name passed to release-please"
+    required: false
+    default: "workflows"
+  path:
+    description: "Subdirectory root scanned for commits"
+    required: false
+    default: "."
+  artifact-name:
+    description: "Base name for uploaded log artifact (will hold dry run log)"
+    required: false
+    default: "release-please-dry-run-log"
+  unique-suffix:
+    description: "If 'true', append path + job + run_attempt to artifact name to avoid 409 conflicts when action runs multiple times in a workflow"
+    required: false
+    default: "true"
+  pr-comment:
+    description: "If 'true', post (or update) a PR comment with predicted version details when running on pull_request events"
+    required: false
+    default: "true"
+  pr-comment-marker:
+    description: "Hidden HTML marker used to find & update the prior comment instead of creating duplicates"
+    required: false
+    default: "release-please-dry-run-marker"
+  show-raw-exit-code:
+    description: "If 'true', include Raw Exit Code row in PR comment table"
+    required: false
+    default: "false"
+
+outputs:
+  predicted_tag:
+    description: "Predicted tag (vX.Y.Z)"
+    value: ${{ steps.parse.outputs.predicted_tag }}
+  predicted_version:
+    description: "Predicted version (X.Y.Z)"
+    value: ${{ steps.parse.outputs.predicted_version }}
+  major:
+    description: "Major component"
+    value: ${{ steps.parse.outputs.major }}
+  minor:
+    description: "Minor component"
+    value: ${{ steps.parse.outputs.minor }}
+  patch:
+    description: "Patch component"
+    value: ${{ steps.parse.outputs.patch }}
+  final_exit_code:
+    description: "Exit code of release-please command"
+    value: ${{ steps.parse.outputs.final_exit_code }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install release-please CLI
+      shell: bash
+      run: npm install -g release-please
+
+    - name: Ensure full git history (best-effort)
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Attempt to unshallow so describe/commit scan works; ignore if already full.
+        git fetch --prune --tags --unshallow 2>/dev/null || true
+        # Fallback shallow fetch of tags if unshallow not possible
+        git fetch --prune --tags --depth=200 2>/dev/null || true
+
+    - name: Run release-please dry run
+      id: run
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        DEFAULT_BRANCH: ${{ inputs['target-branch'] }}
+        RELEASE_TYPE: ${{ inputs['release-type'] }}
+        PACKAGE_NAME: ${{ inputs['package-name'] }}
+        RELEASE_PATH: ${{ inputs.path }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Running release-please with: branch=$DEFAULT_BRANCH type=$RELEASE_TYPE package=$PACKAGE_NAME path=$RELEASE_PATH"
+        set +e
+        release-please release-pr \
+          --repo-url ${{ github.repository }} \
+          --token "$GITHUB_TOKEN" \
+          --api-url "${{ github.api_url }}" \
+          --graphql-url "${{ github.graphql_url }}" \
+          --target-branch "$DEFAULT_BRANCH" \
+          --release-type "$RELEASE_TYPE" \
+          --package-name "$PACKAGE_NAME" \
+          --path "$RELEASE_PATH" \
+          --dry-run --debug | tee rp-dry-run.log
+        RC=$?
+        set -e
+        echo "exit_code=$RC" >> $GITHUB_OUTPUT
+
+    - name: Parse predicted version
+      id: parse
+      shell: bash
+      run: |
+        set -euo pipefail
+        TAG="" # initialize to avoid unbound variable if no bump
+        # Attempt to extract version patterns
+        VERSION=""
+        for pattern in \
+          'chore: release [0-9]\+\.[0-9]\+\.[0-9]\+' \
+          'Releasing [0-9]\+\.[0-9]\+\.[0-9]\+' \
+          'release PR created for version [0-9]\+\.[0-9]\+\.[0-9]\+' \
+          'creating release PR for: [0-9]\+\.[0-9]\+\.[0-9]\+'; do
+            CANDIDATE=$(grep -Eo "$pattern" rp-dry-run.log | tail -n1 || true)
+            [ -n "$CANDIDATE" ] || continue
+            VERSION=$(echo "$CANDIDATE" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
+        done
+
+        if [ -n "$VERSION" ]; then
+          TAG="v$VERSION"
+          IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
+        else
+          echo "No version parsed; attempting fallback conventional commit scan" | tee -a rp-dry-run.log
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo '')
+            if [ -z "$LAST_TAG" ]; then
+            # No existing tag; start from 0.0.0 and scan all commits
+            BASE_VER="0.0.0"
+            COMMITS=$(git log --pretty=format:%s || true)
+          else
+            BASE_VER=${LAST_TAG#v}
+            COMMITS=$(git log --pretty=format:%s "${LAST_TAG}..HEAD" || true)
+          fi
+          IFS=. read -r BASE_M BASE_m BASE_p <<< "$BASE_VER"
+          if echo "$COMMITS" | grep -Eq 'BREAKING CHANGE|!:'; then
+            BASE_M=$((BASE_M+1)); BASE_m=0; BASE_p=0
+          elif echo "$COMMITS" | grep -Eq '^feat'; then
+            BASE_m=$((BASE_m+1)); BASE_p=0
+          elif echo "$COMMITS" | grep -Eq '^fix|^perf'; then
+            BASE_p=$((BASE_p+1))
+          else
+            BASE_M="" # no bump
+          fi
+          if [ -n "$BASE_M" ]; then
+            VERSION="$BASE_M.$BASE_m.$BASE_p"
+            TAG="v$VERSION"
+            MAJOR=$BASE_M; MINOR=$BASE_m; PATCH=$BASE_p
+          fi
+        fi
+
+        if [ -n "$VERSION" ]; then
+          echo "predicted_tag=$TAG" >> $GITHUB_OUTPUT
+          echo "predicted_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+          # Normalize non-zero (1) exit when we successfully derived a version.
+          RAW_RC='${{ steps.run.outputs.exit_code }}'
+          if [ "$RAW_RC" = "1" ]; then
+            echo "final_exit_code=0" >> $GITHUB_OUTPUT
+          else
+            echo "final_exit_code=$RAW_RC" >> $GITHUB_OUTPUT
+          fi
+        else
+          # No version predicted; surface original exit code.
+          echo "final_exit_code=${{ steps.run.outputs.exit_code }}" >> $GITHUB_OUTPUT
+        fi
+        echo "Summary: tag=${TAG:-none} version=${VERSION:-none}" || true
+
+    - name: Compute artifact name
+      id: artifact_name
+      shell: bash
+      run: |
+        set -euo pipefail
+        BASE="${{ inputs['artifact-name'] }}"
+        if [ "${{ inputs['unique-suffix'] }}" = "true" ]; then
+          P="${{ inputs.path }}"
+          [ "$P" = "." ] && P="root"
+          SAFE=$(echo "$P" | tr '/ ' '__')
+          VALUE="${BASE}-${SAFE}-${{ github.job }}-${{ github.run_attempt }}"
+        else
+          VALUE="$BASE"
+        fi
+        echo "Computed artifact name: $VALUE"
+        echo "value=$VALUE" >> $GITHUB_OUTPUT
+
+    - name: Upload log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.artifact_name.outputs.value }}
+        path: rp-dry-run.log
+        if-no-files-found: warn
+
+    - name: PR Comment (Predicted Version)
+      if: ${{ github.event_name == 'pull_request' && inputs['pr-comment'] == 'true' }}
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const marker = '<!-- ' + `${{ inputs['pr-comment-marker'] }}` + ' -->';
+          const tag = `${{ steps.parse.outputs.predicted_tag }}` || 'none';
+          const version = `${{ steps.parse.outputs.predicted_version }}` || 'none';
+          const major = `${{ steps.parse.outputs.major }}` || '-';
+          const minor = `${{ steps.parse.outputs.minor }}` || '-';
+          const patch = `${{ steps.parse.outputs.patch }}` || '-';
+          const exitCode = `${{ steps.run.outputs.exit_code }}`;
+          const showExit = `${{ inputs['show-raw-exit-code'] }}` === 'true';
+          const rows = [
+            `| Predicted Tag | \`${tag}\` |`,
+            `| Version | \`${version}\` |`,
+            `| Major | \`${major}\` |`,
+            `| Minor | \`${minor}\` |`,
+            `| Patch | \`${patch}\` |`
+          ];
+          if (showExit) rows.push(`| Raw Exit Code | \`${exitCode}\` |`);
+          const body = `${marker}\n### Release Dry Run Result\n\n| Field | Value |\n|-------|-------|\n${rows.join('\n')}\n\n_This comment is automatically updated._`;
+
+          const {owner, repo} = context.repo;
+          const issue_number = context.issue.number;
+          // Fetch existing comments and look for marker
+          const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number});
+          const existing = comments.find(c => c.body && c.body.includes(marker));
+          if (existing) {
+            await github.rest.issues.updateComment({owner, repo, comment_id: existing.id, body});
+            core.info('Updated existing dry-run comment.');
+          } else {
+            await github.rest.issues.createComment({owner, repo, issue_number, body});
+            core.info('Created new dry-run comment.');
+          }
+
+    - name: Step Summary
+      if: always()
+      shell: bash
+      run: |
+        {
+          echo '### Release Dry Run (Composite Action)';
+          echo '';
+          echo '* Predicted tag: `${{ steps.parse.outputs.predicted_tag }}`';
+          echo '* Version: `${{ steps.parse.outputs.predicted_version }}`';
+          echo '* Major: `${{ steps.parse.outputs.major }}` Minor: `${{ steps.parse.outputs.minor }}` Patch: `${{ steps.parse.outputs.patch }}`';
+          echo '* Exit Code: `${{ steps.run.outputs.exit_code }}`';
+          if [ -z "${{ steps.parse.outputs.predicted_tag }}" ]; then
+            echo '';
+            echo '> No release bump detected.';
+          fi
+        } >> $GITHUB_STEP_SUMMARY

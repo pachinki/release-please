@@ -1,0 +1,234 @@
+name: "Pre-Release RC"
+description: "Create or increment a vX.Y.Z-rc.N tag and ensure a GitHub prerelease."
+author: "cai-platform"
+branding:
+  icon: "git-branch"
+  color: "purple"
+
+# Composite action implementing the logic formerly in pre-release-rc workflow.
+# It will:
+# 1. Optionally predict next normal version (using release-please dry run)
+# 2. Determine base version via input/prediction/fallback to commit scan
+# 3. Compute next rc number (rc.1, rc.2, ...)
+# 4. Create annotated tag if it does not exist
+# 5. Create or update GitHub prerelease associated with the RC tag
+#
+# Usage example:
+# jobs:
+#   create-rc:
+#     runs-on: self-hosted
+#     steps:
+#       - uses: actions/checkout@v4
+#       - id: rc
+#         uses: ./.github/actions/pre-release-rc
+#         with:
+#           target-branch: main
+#           base-version: ''          # optional, takes priority if provided
+#           notes: 'Testing RC'
+#       - run: echo "RC tag => ${{ steps.rc.outputs.rc_tag }}"
+#
+# Required permissions for calling workflow/job: contents: write (for tag) and (optionally) issues/pr if extended.
+
+inputs:
+  target-branch:
+    description: "Default branch to compare for prediction"
+    required: false
+    default: ""
+  base-version:
+    description: "Explicit base semantic version (overrides prediction)"
+    required: false
+    default: ""
+  release-type:
+    description: "release-please release type used for prediction"
+    required: false
+    default: "simple"
+  package-name:
+    description: "Package/manifest key for prediction"
+    required: false
+    default: "workflows"
+  path:
+    description: "Path used for prediction"
+    required: false
+    default: "."
+  notes:
+    description: "Additional notes for prerelease body"
+    required: false
+    default: ""
+  create-release:
+    description: "Set to false to skip prerelease creation/update"
+    required: false
+    default: "true"
+
+outputs:
+  base_version:
+    description: "Resolved base version (without rc suffix)"
+    value: ${{ steps.compute-base.outputs.base_version }}
+  rc_number:
+    description: "Incremental RC number"
+    value: ${{ steps.compute-rc.outputs.rc_number }}
+  rc_tag:
+    description: "Resulting RC tag vX.Y.Z-rc.N"
+    value: ${{ steps.compute-rc.outputs.rc_tag }}
+  predicted_version:
+    description: "Predicted next normal version (if any)"
+    value: ${{ steps.predict.outputs.predicted_version }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install release-please CLI
+      shell: bash
+      run: npm install -g release-please
+
+    - name: Predict next version
+      id: predict
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        DEFAULT_BRANCH: ${{ inputs['target-branch'] || github.event.repository.default_branch }}
+        RELEASE_TYPE: ${{ inputs['release-type'] }}
+        PACKAGE_NAME: ${{ inputs['package-name'] }}
+        RELEASE_PATH: ${{ inputs.path }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Predicting version against branch=$DEFAULT_BRANCH type=$RELEASE_TYPE package=$PACKAGE_NAME path=$RELEASE_PATH"
+        set +e
+        release-please release-pr \
+          --repo-url ${{ github.repository }} \
+          --token "$GITHUB_TOKEN" \
+          --api-url "${{ github.api_url }}" \
+          --graphql-url "${{ github.graphql_url }}" \
+          --target-branch "$DEFAULT_BRANCH" \
+          --release-type "$RELEASE_TYPE" \
+          --package-name "$PACKAGE_NAME" \
+          --path "$RELEASE_PATH" \
+          --dry-run --debug | tee rp-rc-predict.log
+        RC=$?
+        set -e
+        VERSION=""
+        for pattern in \
+          'chore: release [0-9]\+\.[0-9]\+\.[0-9]\+' \
+          'Releasing [0-9]\+\.[0-9]\+\.[0-9]\+' \
+          'release PR created for version [0-9]\+\.[0-9]\+\.[0-9]\+' \
+          'creating release PR for: [0-9]\+\.[0-9]\+\.[0-9]\+'; do
+          CANDIDATE=$(grep -Eo "$pattern" rp-rc-predict.log | tail -n1 || true)
+          [ -n "$CANDIDATE" ] || continue
+          VERSION=$(echo "$CANDIDATE" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
+        done
+        if [ -n "$VERSION" ]; then
+          echo "predicted_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "predicted_tag=v$VERSION" >> $GITHUB_OUTPUT
+        fi
+        echo "predict_exit_code=$RC" >> $GITHUB_OUTPUT
+
+    - name: Determine base version
+      id: compute-base
+      shell: bash
+      run: |
+        set -euo pipefail
+        INPUT_VERSION='${{ inputs['base-version'] }}'
+        PRED_TAG='${{ steps.predict.outputs.predicted_tag }}'
+        if [ -n "$INPUT_VERSION" ]; then
+          BASE="$INPUT_VERSION"; SOURCE="input"
+        elif [ -n "$PRED_TAG" ]; then
+          BASE="${PRED_TAG#v}"; SOURCE="predicted"
+        else
+          echo "Falling back to commit scan heuristic" >&2
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')
+          BASE_VER=${LAST_TAG#v}
+          IFS=. read -r M m p <<< "$BASE_VER"
+          COMMITS=$(git log --pretty=format:%s ${LAST_TAG}..HEAD || true)
+          if echo "$COMMITS" | grep -Eq 'BREAKING CHANGE|!:'; then
+            M=$((M+1)); m=0; p=0
+          elif echo "$COMMITS" | grep -Eq '^feat'; then
+            m=$((m+1)); p=0
+          elif echo "$COMMITS" | grep -Eq '^fix|^perf'; then
+            p=$((p+1))
+          else
+            echo "Unable to determine semantic bump (no qualifying commits)." >&2
+            exit 1
+          fi
+          BASE="$M.$m.$p"; SOURCE="fallback"
+        fi
+        echo "base_version=$BASE" >> $GITHUB_OUTPUT
+        echo "Base version source=$SOURCE"
+
+    - name: Compute next RC number
+      id: compute-rc
+      shell: bash
+      run: |
+        set -euo pipefail
+        BASE='${{ steps.compute-base.outputs.base_version }}'
+        LAST_RC=$(git tag --list "v${BASE}-rc.*" | sort -V | tail -n1)
+        if [ -z "$LAST_RC" ]; then
+          NEXT=1
+        else
+          LAST_NUM=${LAST_RC##*-rc.}
+          NEXT=$((LAST_NUM + 1))
+        fi
+        echo "rc_number=$NEXT" >> $GITHUB_OUTPUT
+        echo "rc_tag=v${BASE}-rc.$NEXT" >> $GITHUB_OUTPUT
+        echo "Next RC: v${BASE}-rc.$NEXT (previous: ${LAST_RC:-none})"
+
+    - name: Create RC tag
+      shell: bash
+      env:
+        GIT_USER_NAME: ${{ vars.RC_GIT_USER_NAME }}
+        GIT_USER_EMAIL: ${{ vars.RC_GIT_USER_EMAIL }}
+      run: |
+        set -euo pipefail
+        TAG='${{ steps.compute-rc.outputs.rc_tag }}'
+        if ! git config user.email >/dev/null; then
+          git config user.email "${GIT_USER_EMAIL:-releases-bot@your-domain.example}"
+        fi
+        if ! git config user.name >/dev/null; then
+          git config user.name "${GIT_USER_NAME:-Release Automation}"
+        fi
+        if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+          echo "Tag $TAG already exists; skipping creation"
+        else
+          git tag -a "$TAG" -m "Pre-release $TAG"
+          git push origin "$TAG"
+        fi
+
+    - name: Create/Update GitHub prerelease
+      if: ${{ inputs.create-release == 'true' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        TAG='${{ steps.compute-rc.outputs.rc_tag }}'
+        NOTES='${{ inputs.notes }}'
+        BASE='${{ steps.compute-base.outputs.base_version }}'
+        RC_NUMBER='${{ steps.compute-rc.outputs.rc_number }}'
+        BODY_RAW="Pre-release $TAG\n\nBase version: $BASE\nRC number: $RC_NUMBER\n\n$NOTES"
+        export BODY_RAW
+        BODY_ESCAPED=$(python3 -c "import json,os; print(json.dumps(os.environ.get('BODY_RAW','')))" )
+        API='${{ github.api_url }}'
+        REPO='${{ github.repository }}'
+        STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$API/repos/$REPO/releases/tags/$TAG" || true)
+        if [ "$STATUS" = "200" ]; then
+          RELEASE_ID=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$API/repos/$REPO/releases/tags/$TAG" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+          curl -s -X PATCH -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' -d "{\"tag_name\": \"$TAG\", \"name\": \"$TAG\", \"body\": $BODY_ESCAPED, \"prerelease\": true, \"draft\": false}" "$API/repos/$REPO/releases/$RELEASE_ID" >/dev/null
+          echo "Updated prerelease $TAG"
+        else
+          curl -s -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' -d "{\"tag_name\": \"$TAG\", \"name\": \"$TAG\", \"body\": $BODY_ESCAPED, \"prerelease\": true, \"draft\": false}" "$API/repos/$REPO/releases" >/dev/null
+          echo "Created prerelease $TAG"
+        fi
+
+    - name: Summary
+      shell: bash
+      run: |
+        {
+          echo '### Pre-Release RC Summary';
+          echo "* Base Version: ${{ steps.compute-base.outputs.base_version }}";
+          echo "* RC Tag: ${{ steps.compute-rc.outputs.rc_tag }}";
+          echo "* RC Number: ${{ steps.compute-rc.outputs.rc_number }}";
+          echo "* Predicted Normal Version: ${{ steps.predict.outputs.predicted_version }}";
+        } >> $GITHUB_STEP_SUMMARY
