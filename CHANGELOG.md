@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/pachinki/release-please/compare/v1.1.0...v1.1.1) (2025-09-20)
+
+
+### Bug Fixes
+
+* test feature 3 ([325a282](https://github.com/pachinki/release-please/commit/325a282ba069495ea16a7444583fe27feb6d6fa9))
+* test feature 3 ([6f58d57](https://github.com/pachinki/release-please/commit/6f58d57afb8c06da4a2481cfc705a7dec5e729c8))
+
 ## [1.1.0](https://github.com/pachinki/release-please/compare/v1.0.0...v1.1.0) (2025-09-20)
 
 
