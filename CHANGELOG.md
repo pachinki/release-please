@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.6](https://github.com/pachinki/release-please/compare/v2.2.5...v2.2.6) (2025-09-20)
+
+
+### Bug Fixes
+
+* updated config json ([#22](https://github.com/pachinki/release-please/issues/22)) ([579c876](https://github.com/pachinki/release-please/commit/579c8764a133426c92aae814f1a30f3228bba6b1))
+
 ## [2.2.5](https://github.com/pachinki/release-please/compare/v2.2.4...v2.2.5) (2025-09-20)
 
 
