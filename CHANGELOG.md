@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.2](https://github.com/pachinki/release-please/compare/v2.2.1...v2.2.2) (2025-09-20)
+
+
+### Bug Fixes
+
+* test feature 8 ([f4823bf](https://github.com/pachinki/release-please/commit/f4823bfe11d6b633254276427a9130cfa77bb7c4))
+* test feature 8 ([53ec66f](https://github.com/pachinki/release-please/commit/53ec66f6fdf1bbce81460d9dfb7aa90f349717f8))
+
 ## [2.2.1](https://github.com/pachinki/release-please/compare/v2.2.0...v2.2.1) (2025-09-20)
 
 
