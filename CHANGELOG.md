@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/pachinki/release-please/compare/v3.0.1...v3.1.0) (2025-09-20)
+
+
+### Features
+
+* implement major bump protection with automatic approval enforcement ([d4fe25b](https://github.com/pachinki/release-please/commit/d4fe25b4d13c2b80258b38552c97e8b9a9599909))
+
 ## [3.0.1](https://github.com/pachinki/release-please/compare/v3.0.0...v3.0.1) (2025-09-20)
 
 
