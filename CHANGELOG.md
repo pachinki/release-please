@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.0.0](https://github.com/pachinki/release-please/compare/v1.1.1...v2.0.0) (2025-09-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* broaden the scope of dry-run
+* test feature 4
+
+### Features
+
+* broaden the scope of dry-run ([517bca5](https://github.com/pachinki/release-please/commit/517bca5d677b639b4cd68d12916d6ec7dfd8c75a))
+* test feature 4 ([c34fae7](https://github.com/pachinki/release-please/commit/c34fae7beb69de4df1f72120490d51febf64bb78))
+
 ## [1.1.1](https://github.com/pachinki/release-please/compare/v1.1.0...v1.1.1) (2025-09-20)
 
 
