@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.5](https://github.com/pachinki/release-please/compare/v2.2.4...v2.2.5) (2025-09-20)
+
+
+### Bug Fixes
+
+* renamed workflows ([88b8a6c](https://github.com/pachinki/release-please/commit/88b8a6c99359ae7cac19171afa8f6829e68b6a0c))
+* renamed workflows ([b2d7432](https://github.com/pachinki/release-please/commit/b2d74326558ef18c4aa03150bf0e5681c6d83136))
+
 ## [2.2.4](https://github.com/pachinki/release-please/compare/v2.2.3...v2.2.4) (2025-09-20)
 
 
