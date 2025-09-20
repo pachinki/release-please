@@ -55,6 +55,8 @@ on:
       - "CHANGELOG.md"
       - "**/*.sh"
       - "**/*.md"
+      - "**/*.txt"
+    
   workflow_dispatch: {}
 
 permissions:
