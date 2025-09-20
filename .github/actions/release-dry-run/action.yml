@@ -5,37 +5,6 @@ branding:
   icon: "tag"
   color: "blue"
 
-# Usage examples:
-# 1. Direct in a workflow job:
-#    jobs:
-#      next-version:
-#        runs-on: self-hosted
-#        steps:
-#          - uses: actions/checkout@v4
-#          - id: calc
-#            uses: ./.github/actions/release-dry-run
-#            with:
-#              target-branch: main
-#          - run: echo "Predicted=${{ steps.calc.outputs.predicted_tag }}"
-#
-# 2. From another repository referencing this repo:
-#    - id: calc
-#      uses: your-org/your-repo/.github/actions/release-dry-run@main
-#
-# 3. Combined with a matrix (call composite directly for best performance):
-#    strategy:
-#      matrix:
-#        service: [api-a, api-b]
-#    steps:
-#      - uses: actions/checkout@v4
-#      - uses: ./.github/actions/release-dry-run
-#        with:
-#          path: ${{ matrix.service }}
-
-# Composite so it can be used in any workflow job.
-# Requirements: GITHUB_TOKEN available in env or secrets.
-# Outputs: predicted_tag, predicted_version, major, minor, patch, final_exit_code
-
 inputs:
   target-branch:
     description: "Target (default) branch to compare against"
@@ -208,16 +177,16 @@ runs:
           const nextTag = `${{ steps.forward_predict.outputs.next_tag }}` || 'none';
           const bumpType = `${{ steps.forward_predict.outputs.bump_type }}` || 'none';
           
-          const body = `${marker}
-### Release Dry Run Result
+          const body = marker + `
+          ### Release Dry Run Result
 
-| Field | Value |
-|-------|-------|
-| Current Tag | \`${currentTag}\` |
-| Next Tag After Merge | \`${nextTag}\` |
-| Bump Type | \`${bumpType}\` |
+          | Field | Value |
+          |-------|-------|
+          | Current Tag | \`${currentTag}\` |
+          | Next Tag After Merge | \`${nextTag}\` |
+          | Bump Type | \`${bumpType}\` |
 
-_Comment updates automatically on each run._`;
+          _Comment updates automatically on each run._`;
 
           const {owner, repo} = context.repo;
           const issue_number = context.issue.number;
