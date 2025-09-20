@@ -81,6 +81,18 @@ outputs:
   predicted_version:
     description: "Predicted version (X.Y.Z)"
     value: ${{ steps.parse.outputs.predicted_version }}
+  forward_predicted_tag:
+    description: "Forward-looking predicted tag (includes PR-only commits)"
+    value: ${{ steps.forward_predict.outputs.forward_predicted_tag }}
+  forward_predicted_version:
+    description: "Forward-looking predicted version (includes PR-only commits)"
+    value: ${{ steps.forward_predict.outputs.forward_predicted_version }}
+  forward_bump_type:
+    description: "Semantic bump type contributed by PR-only commits (none|patch|minor|major)"
+    value: ${{ steps.forward_predict.outputs.forward_bump_type }}
+  branch_behind_default:
+    description: "true if PR branch is behind target branch"
+    value: ${{ steps.forward_predict.outputs.branch_behind_default }}
   major:
     description: "Major component"
     value: ${{ steps.parse.outputs.major }}
@@ -114,6 +126,8 @@ runs:
         git fetch --prune --tags --unshallow 2>/dev/null || true
         # Fallback shallow fetch of tags if unshallow not possible
         git fetch --prune --tags --depth=200 2>/dev/null || true
+        # Make sure we have the latest default branch ref (important for PR context)
+        git fetch origin "${{ inputs['target-branch'] }}" --depth=200 2>/dev/null || true
 
     - name: Run release-please dry run
       id: run
@@ -127,6 +141,12 @@ runs:
       run: |
         set -euo pipefail
         echo "Running release-please with: branch=$DEFAULT_BRANCH type=$RELEASE_TYPE package=$PACKAGE_NAME path=$RELEASE_PATH"
+        ORIGINAL_REF=$(git rev-parse --abbrev-ref HEAD || echo HEAD)
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "PR context detected: switching to up-to-date default branch origin/$DEFAULT_BRANCH for authoritative dry-run" | tee -a rp-dry-run.log
+          git fetch origin "$DEFAULT_BRANCH" --tags --force
+          git checkout -f "origin/$DEFAULT_BRANCH"
+        fi
         set +e
         release-please release-pr \
           --repo-url ${{ github.repository }} \
@@ -140,6 +160,10 @@ runs:
           --dry-run --debug | tee rp-dry-run.log
         RC=$?
         set -e
+        # Return to original ref if we switched
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          git checkout -f "$ORIGINAL_REF" 2>/dev/null || true
+        fi
         echo "exit_code=$RC" >> $GITHUB_OUTPUT
 
     - name: Parse predicted version
@@ -221,6 +245,54 @@ runs:
         fi
         echo "Summary: tag=${TAG:-none} version=${VERSION:-none}" || true
 
+    - name: Forward predict (post-merge simulation)
+      id: forward_predict
+      if: github.event_name == 'pull_request'
+      shell: bash
+      run: |
+        set -euo pipefail
+        TARGET='${{ inputs['target-branch'] }}'
+        git fetch origin "$TARGET" --tags --force
+        # Detect behind status
+        BASE_SHA=$(git rev-parse origin/$TARGET)
+        MERGE_BASE=$(git merge-base HEAD origin/$TARGET || echo '')
+        if [ "$MERGE_BASE" != "$BASE_SHA" ]; then
+          echo "branch_behind_default=true" >> $GITHUB_OUTPUT
+          echo "PR branch is behind $TARGET (merge-base $MERGE_BASE != $BASE_SHA)" | tee -a rp-dry-run.log
+        else
+          echo "branch_behind_default=false" >> $GITHUB_OUTPUT
+        fi
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')
+        LAST_VER=${LAST_TAG#v}
+        IFS=. read -r MAJ MIN PAT <<< "$LAST_VER"
+        PR_COMMITS=$(git log --pretty=format:%s origin/$TARGET..HEAD || true)
+        if [ -z "$PR_COMMITS" ]; then
+          echo "No PR-only commits; forward version = $LAST_VER" | tee -a rp-dry-run.log
+          echo "forward_bump_type=none" >> $GITHUB_OUTPUT
+          echo "forward_predicted_version=$LAST_VER" >> $GITHUB_OUTPUT
+          echo "forward_predicted_tag=v$LAST_VER" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        BUMP=none
+        if echo "$PR_COMMITS" | grep -Eq 'BREAKING CHANGE|!:'; then
+          BUMP=major
+        elif echo "$PR_COMMITS" | grep -Eq '^feat'; then
+          BUMP=minor
+        elif echo "$PR_COMMITS" | grep -Eq '^fix|^perf'; then
+          BUMP=patch
+        fi
+        case $BUMP in
+          major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
+          minor) MIN=$((MIN+1)); PAT=0 ;;
+          patch) PAT=$((PAT+1)) ;;
+          none) : ;;
+        esac
+        NEW_VER="$MAJ.$MIN.$PAT"
+        echo "Forward bump type: $BUMP -> $NEW_VER" | tee -a rp-dry-run.log
+        echo "forward_bump_type=$BUMP" >> $GITHUB_OUTPUT
+        echo "forward_predicted_version=$NEW_VER" >> $GITHUB_OUTPUT
+        echo "forward_predicted_tag=v$NEW_VER" >> $GITHUB_OUTPUT
+
     - name: Compute artifact name
       id: artifact_name
       shell: bash
@@ -255,20 +327,28 @@ runs:
           const marker = '<!-- ' + `${{ inputs['pr-comment-marker'] }}` + ' -->';
           const tag = `${{ steps.parse.outputs.predicted_tag }}` || 'none';
           const version = `${{ steps.parse.outputs.predicted_version }}` || 'none';
+          const fTag = `${{ steps.forward_predict.outputs.forward_predicted_tag }}` || 'none';
+          const fVersion = `${{ steps.forward_predict.outputs.forward_predicted_version }}` || 'none';
+          const fBump = `${{ steps.forward_predict.outputs.forward_bump_type }}` || 'none';
+          const behind = `${{ steps.forward_predict.outputs.branch_behind_default }}` === 'true';
           const major = `${{ steps.parse.outputs.major }}` || '-';
           const minor = `${{ steps.parse.outputs.minor }}` || '-';
           const patch = `${{ steps.parse.outputs.patch }}` || '-';
           const exitCode = `${{ steps.run.outputs.exit_code }}`;
           const showExit = `${{ inputs['show-raw-exit-code'] }}` === 'true';
           const rows = [
-            `| Predicted Tag | \`${tag}\` |`,
-            `| Version | \`${version}\` |`,
+            `| Current Main Predicted Tag | \`${tag}\` |`,
+            `| Current Main Predicted Version | \`${version}\` |`,
+            `| Forward (Post-Merge) Tag | \`${fTag}\` |`,
+            `| Forward (Post-Merge) Version | \`${fVersion}\` |`,
+            `| Forward Bump Type | \`${fBump}\` |`,
             `| Major | \`${major}\` |`,
             `| Minor | \`${minor}\` |`,
             `| Patch | \`${patch}\` |`
           ];
           if (showExit) rows.push(`| Raw Exit Code | \`${exitCode}\` |`);
-          const body = `${marker}\n### Release Dry Run Result\n\n| Field | Value |\n|-------|-------|\n${rows.join('\n')}\n\n_This comment is automatically updated._`;
+          if (behind) rows.push(`| Branch Behind Default | \`true\` |`);
+          const body = `${marker}\n### Release Dry Run Result\n\n| Field | Value |\n|-------|-------|\n${rows.join('\n')}\n\n_This comment distinguishes current default-branch state vs forward post-merge prediction. It updates automatically._`;
 
           const {owner, repo} = context.repo;
           const issue_number = context.issue.number;
