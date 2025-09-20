@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/pachinki/release-please/compare/v2.2.6...v2.3.0) (2025-09-20)
+
+
+### Features
+
+* add new test feature to trigger release ([9794e74](https://github.com/pachinki/release-please/commit/9794e748ee976fb5c0d14902eda21c0a30dcf9a8))
+
 ## [2.2.6](https://github.com/pachinki/release-please/compare/v2.2.5...v2.2.6) (2025-09-20)
 
 
