@@ -6,8 +6,11 @@
   "group-pull-request-title-pattern": "chore(main): release ${version}",
   "pull-request-title-pattern": "chore(main): release ${version}",
   "prerelease": false,
+  "versioning": "default",
   "packages": {
     ".": {
+      "release-type": "simple",
+      "prerelease": false,
       "extra-files": [],
       "changelog-sections": [
         {"type": "feat", "section": "Features"},

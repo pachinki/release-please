@@ -22,7 +22,74 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Calculate Next Version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Use the same logic as dry-run to ensure consistency
+
+          # Find highest semver tag on main branch
+          CANDIDATES=$(git tag --merged main | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+          if [ -n "$CANDIDATES" ]; then
+            CURRENT_TAG=$(echo "$CANDIDATES" | awk -F'[v.]' '{printf "%s %d %d %d\n",$0,$2,$3,$4}' | sort -k2,2n -k3,3n -k4,4n | tail -n1 | cut -d' ' -f1)
+          else
+            CURRENT_TAG="v0.0.0"
+          fi
+
+          echo "Current tag: $CURRENT_TAG"
+
+          # Analyze commits since last tag for bump type
+          COMMITS_SINCE_TAG=$(git log $CURRENT_TAG..HEAD --pretty=format:'%s' 2>/dev/null || echo "")
+          echo "Commits since $CURRENT_TAG:"
+          echo "$COMMITS_SINCE_TAG"
+
+          # Determine bump type
+          if echo "$COMMITS_SINCE_TAG" | grep -qE '^[^:]*!:|BREAKING CHANGE'; then
+            BUMP=major
+            echo "Found breaking changes - major bump"
+          elif echo "$COMMITS_SINCE_TAG" | grep -qE '^feat(\(|:)'; then
+            BUMP=minor
+            echo "Found feat commits - minor bump"
+          elif echo "$COMMITS_SINCE_TAG" | grep -qE '^(fix|perf)(\(|:)'; then
+            BUMP=patch
+            echo "Found fix/perf commits - patch bump"
+          else
+            BUMP=none
+            echo "No significant commits found - no bump"
+            exit 0
+          fi
+
+          # Calculate next version
+          CURRENT_VER=${CURRENT_TAG#v}
+          IFS=. read -r MAJ MIN PAT <<< "$CURRENT_VER"
+
+          case $BUMP in
+            major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
+            minor) MIN=$((MIN+1)); PAT=0 ;;
+            patch) PAT=$((PAT+1)) ;;
+          esac
+
+          NEXT_VER="$MAJ.$MIN.$PAT"
+          NEXT_TAG="v$NEXT_VER"
+
+          echo "Next version: $NEXT_VER"
+          echo "Next tag: $NEXT_TAG"
+
+          echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
+          echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
+          echo "next_version=$NEXT_VER" >> $GITHUB_OUTPUT
+          echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
+
+      - name: Update Manifest
+        if: steps.version.outputs.bump_type != 'none'
+        shell: bash
+        run: |
+          # Update the manifest file with the new version
+          echo '{"." : "${{ steps.version.outputs.next_version }}"}' > .release-please-manifest.json
+
       - name: Release Please
+        if: steps.version.outputs.bump_type != 'none'
         id: release
         uses: googleapis/release-please-action@v4
         with:
@@ -30,8 +97,9 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           include-component-in-tag: false
-          # Ensure consistent behavior
+          # Force the specific target branch
           target-branch: main
+          # Skip GitHub release creation to avoid version conflicts
           skip-github-release: false
 
       - name: Show outputs
