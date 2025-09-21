@@ -56,7 +56,7 @@ on:
     #   - "**/*.sh"
     #   - "**/*.md"
     #   - "**/*.txt"
-    
+
   workflow_dispatch: {}
 
 permissions:
@@ -87,6 +87,8 @@ jobs:
           release-type: ${{ inputs['release-type'] || 'simple' }}
           package-name: ${{ inputs['package-name'] || 'workflows' }}
           path: ${{ inputs['path'] || '.' }}
+          config-file: "release-please-config.json"
+          manifest-file: ".release-please-manifest.json"
 
       - name: Upload dry-run log
         if: always()

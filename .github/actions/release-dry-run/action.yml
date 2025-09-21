@@ -14,6 +14,14 @@ inputs:
     description: "release-please release type (simple|manifest|node|python|...)"
     required: false
     default: "simple"
+  config-file:
+    description: "Path to release-please config file"
+    required: false
+    default: "release-please-config.json"
+  manifest-file:
+    description: "Path to release-please manifest file"
+    required: false
+    default: ".release-please-manifest.json"
   package-name:
     description: "Package / manifest key name passed to release-please"
     required: false
@@ -53,13 +61,13 @@ outputs:
     value: ${{ steps.baseline.outputs.current_tag }}
   next_tag:
     description: "Next tag after merge (vX.Y.Z)"
-    value: ${{ steps.forward_predict.outputs.next_tag }}
+    value: ${{ github.event_name == 'pull_request' && steps.forward_predict.outputs.next_tag || steps.current_predict.outputs.next_tag }}
   bump_type:
     description: "Semantic bump type (none|patch|minor|major)"
-    value: ${{ steps.forward_predict.outputs.bump_type }}
+    value: ${{ github.event_name == 'pull_request' && steps.forward_predict.outputs.bump_type || steps.current_predict.outputs.bump_type }}
   major_bump_detected:
     description: "True if major bump was detected and protection was applied"
-    value: ${{ github.event_name == 'pull_request' && steps.forward_predict.outputs.bump_type == 'major' && inputs['enforce-major-approval'] == 'true' }}
+    value: ${{ github.event_name == 'pull_request' && (steps.forward_predict.outputs.bump_type == 'major' || steps.current_predict.outputs.bump_type == 'major') && inputs['enforce-major-approval'] == 'true' }}
 
 runs:
   using: "composite"
@@ -137,53 +145,145 @@ runs:
         echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
         echo "Current tag: $CURRENT_TAG" | tee -a baseline.log
 
-    - name: Predict next tag after merge
+    - name: Predict next tag after merge using release-please
       id: forward_predict
       if: github.event_name == 'pull_request'
       shell: bash
       run: |
         set -euo pipefail
         TARGET='${{ inputs['target-branch'] }}'
+
+        # Use release-please CLI in dry-run mode with the same configuration as the actual release workflow
+        echo "Running release-please in dry-run mode to predict next version..." | tee -a baseline.log
+
+        # Set up git config (required for release-please)
+        git config user.name github-actions[bot] || true
+        git config user.email 41898282+github-actions[bot]@users.noreply.github.com || true
+
+        # Run release-please in dry-run mode
+        RELEASE_OUTPUT=$(release-please release-pr \
+          --release-type='${{ inputs.release-type }}' \
+          --target-branch="$TARGET" \
+          --config-file='${{ inputs.config-file }}' \
+          --manifest-file='${{ inputs.manifest-file }}' \
+          --dry-run 2>&1 || true)
+
+        echo "Release-please output:" | tee -a baseline.log
+        echo "$RELEASE_OUTPUT" | tee -a baseline.log
+
+        # Parse the output to extract version information
+        # release-please outputs the PR title which contains the version
+        NEXT_TAG=$(echo "$RELEASE_OUTPUT" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
+
+        if [ -z "$NEXT_TAG" ]; then
+          # Fallback: try to extract from "release" or "version" mentions
+          NEXT_VER=$(echo "$RELEASE_OUTPUT" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
+          if [ -n "$NEXT_VER" ]; then
+            NEXT_TAG="v$NEXT_VER"
+          else
+            # No version change detected
+            CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
+            NEXT_TAG="$CURRENT_TAG"
+            echo "No version change detected, staying at $CURRENT_TAG" | tee -a baseline.log
+          fi
+        fi
+
+        # Determine bump type by comparing with current tag
         CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
         CURRENT_VER=${CURRENT_TAG#v}
+        NEXT_VER=${NEXT_TAG#v}
 
-        # Normalize to three-part semver
-        if [[ ! "$CURRENT_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          IFS=. read -r LV_M LV_m LV_p <<< "$CURRENT_VER"
-          LV_M=${LV_M:-0}; LV_m=${LV_m:-0}; LV_p=${LV_p:-0}
-          CURRENT_VER="$LV_M.$LV_m.$LV_p"
-        fi
-        IFS=. read -r MAJ MIN PAT <<< "$CURRENT_VER"
-
-        # Check PR-only commits for bump type
-        PR_COMMITS=$(git log --pretty=format:'%s%n%b' origin/$TARGET..HEAD || true)
-        if [ -z "$PR_COMMITS" ]; then
+        if [ "$CURRENT_VER" = "$NEXT_VER" ]; then
           BUMP=none
-        elif echo "$PR_COMMITS" | grep -Eiq 'BREAKING CHANGE|!:'; then
-          BUMP=major
-        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*feat(\(|:)' ; then
-          BUMP=minor
-        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*(fix|perf)(\(|:)|bugfix|hotfix' ; then
-          BUMP=patch
         else
-          # All other commit types result in no version bump
-          BUMP=none
+          # Parse version numbers
+          IFS=. read -r C_MAJ C_MIN C_PAT <<< "${CURRENT_VER%%-*}"
+          IFS=. read -r N_MAJ N_MIN N_PAT <<< "${NEXT_VER%%-*}"
+          
+          if [ "$N_MAJ" -gt "$C_MAJ" ]; then
+            BUMP=major
+          elif [ "$N_MIN" -gt "$C_MIN" ]; then
+            BUMP=minor
+          elif [ "$N_PAT" -gt "$C_PAT" ]; then
+            BUMP=patch
+          else
+            BUMP=none
+          fi
         fi
-
-        # Calculate next version
-        case $BUMP in
-          major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
-          minor) MIN=$((MIN+1)); PAT=0 ;;
-          patch) PAT=$((PAT+1)) ;;
-          none) : ;;
-        esac
-
-        NEXT_VER="$MAJ.$MIN.$PAT"
-        NEXT_TAG="v$NEXT_VER"
 
         echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
         echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
         echo "Next tag after merge: $NEXT_TAG (bump: $BUMP)" | tee -a baseline.log
+        echo "Using release-please CLI ensures consistency with actual release workflow" | tee -a baseline.log
+
+    - name: Predict next tag for current state (non-PR events)
+      id: current_predict
+      if: github.event_name != 'pull_request'
+      shell: bash
+      run: |
+        set -euo pipefail
+        TARGET='${{ inputs['target-branch'] }}'
+
+        # Use release-please CLI to see what the current state would release
+        echo "Running release-please in dry-run mode for current state..." | tee -a baseline.log
+
+        # Set up git config (required for release-please)
+        git config user.name github-actions[bot] || true
+        git config user.email 41898282+github-actions[bot]@users.noreply.github.com || true
+
+        # Run release-please in dry-run mode
+        RELEASE_OUTPUT=$(release-please release-pr \
+          --release-type='${{ inputs.release-type }}' \
+          --target-branch="$TARGET" \
+          --config-file='${{ inputs.config-file }}' \
+          --manifest-file='${{ inputs.manifest-file }}' \
+          --dry-run 2>&1 || true)
+
+        echo "Release-please output for current state:" | tee -a baseline.log
+        echo "$RELEASE_OUTPUT" | tee -a baseline.log
+
+        # Parse the output to extract version information
+        NEXT_TAG=$(echo "$RELEASE_OUTPUT" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
+
+        if [ -z "$NEXT_TAG" ]; then
+          # Fallback: try to extract from "release" or "version" mentions
+          NEXT_VER=$(echo "$RELEASE_OUTPUT" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
+          if [ -n "$NEXT_VER" ]; then
+            NEXT_TAG="v$NEXT_VER"
+          else
+            # No version change detected, use current tag
+            NEXT_TAG='${{ steps.baseline.outputs.current_tag }}'
+            echo "No version change detected, staying at $NEXT_TAG" | tee -a baseline.log
+          fi
+        fi
+
+        # Determine bump type by comparing with current tag
+        CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
+        CURRENT_VER=${CURRENT_TAG#v}
+        NEXT_VER=${NEXT_TAG#v}
+
+        if [ "$CURRENT_VER" = "$NEXT_VER" ]; then
+          BUMP=none
+        else
+          # Parse version numbers
+          IFS=. read -r C_MAJ C_MIN C_PAT <<< "${CURRENT_VER%%-*}"
+          IFS=. read -r N_MAJ N_MIN N_PAT <<< "${NEXT_VER%%-*}"
+          
+          if [ "$N_MAJ" -gt "$C_MAJ" ]; then
+            BUMP=major
+          elif [ "$N_MIN" -gt "$C_MIN" ]; then
+            BUMP=minor
+          elif [ "$N_PAT" -gt "$C_PAT" ]; then
+            BUMP=patch
+          else
+            BUMP=none
+          fi
+        fi
+
+        echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
+        echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
+        echo "Current state would create: $NEXT_TAG (bump: $BUMP)" | tee -a baseline.log
+        echo "Using release-please CLI ensures consistency with actual release workflow" | tee -a baseline.log
 
     - name: Check for Version Conflicts
       if: github.event_name == 'pull_request'
