@@ -4,9 +4,11 @@ Using [release-please](https://github.com/google-github-actions/release-please-a
 
 ### TL;DR
 
-1. Write commits using the Conventional Commit prefix (e.g. `feat:`, `fix:`).
-2. Merge to `main`.
-3. The workflow calculates the new version, updates the changelog & creates tags (`vX.Y.Z`, plus floating `vX` & `vX.Y`).
+1. Important to use conventional branch names (e.g. `feat/pre-release-workflow`, `fix/release-validation`, `chore/dependency-updates`). This is required for releases to work.
+2. Write commits using the Conventional Commit prefix (e.g. `feat:`, `fix:`).
+3. The release workflow calculates the new version, updates the changelog & creates tags (`vX.Y.Z`, plus floating `vX` & `vX.Y`).
+4. The dry-run workflow automatically gets triggered when a PR is created. It checks what version will be deployed and validates if the PR title contains the conventional commit prefix.
+5. The pre-release workflow creates pre-release tags (`vX.Y.Z-rc`) and labels the tags as `pre-release`
 
 ### How version bumps are chosen
 
@@ -66,18 +68,18 @@ Pick the tag that matches the stability you need:
 
 ```yaml
 # ✅ Recommended (tracks non-breaking updates)
-uses: your-org/test-workflow-versioning/.github/workflows/deploy.yml@v1
+uses: your-org/your-repo/.github/workflows/deploy.yml@v1
 
 # ✅ Locked to a minor (only patch bumps)
-uses: your-org/test-workflow-versioning/.github/workflows/deploy.yml@v1.0
+uses: your-org/your-repo/.github/workflows/deploy.yml@v1.0
 
 # ✅ Fully pinned (no movement)
-uses: your-org/test-workflow-versioning/.github/workflows/deploy.yml@v1.0.3
+uses: your-org/your-repo/.github/workflows/deploy.yml@v1.0.3
 ```
 
 #### Migrating existing consumers
 
-1. Search your repos for `test-workflow-versioning@main`.
+1. Search your repos for `your-repo@main`.
 2. Replace with the appropriate tag (usually `@v1`).
 3. Commit with: `chore: stop consuming workflow via @main`.
 4. (Optional) For critical pipelines, pin initially to a full version, then relax to `v1` after validation.
@@ -124,17 +126,17 @@ v1.0    (continues to point at latest 1.0.x patch until no more 1.0 patches)
 #### In another GitHub workflow (reusable action / composite / workflow)
 
 ```yaml
-uses: your-org/test-workflow-versioning@v1       # auto-updates to new minor & patch releases (no breaking changes)
-# uses: your-org/test-workflow-versioning@v1.0   # only patch updates within 1.0.x
-# uses: your-org/test-workflow-versioning@v1.0.3 # exact version (recommended for production reproducibility)
+uses: your-org/your-repo@v1       # auto-updates to new minor & patch releases (no breaking changes)
+uses: your-org/your-repo@v1.0     # only patch updates within 1.0.x
+uses: your-org/your-repo@v1.0.3   # exact version (recommended for production reproducibility)
 ```
 
 #### Cloning source locally
 
 ```bash
-git clone https://github.com/your-org/test-workflow-versioning.git --branch v1 --single-branch
+git clone https://github.com/your-org/your-repo.git --branch v1 --single-branch
 # or for exact bits
-git clone https://github.com/your-org/test-workflow-versioning.git --branch v1.0.0 --single-branch
+git clone https://github.com/your-org/your-repo.git --branch v1.0.0 --single-branch
 ```
 
 #### Updating local floating tags
