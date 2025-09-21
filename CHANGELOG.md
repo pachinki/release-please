@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.6.0-rc.2](https://github.com/pachinki/release-please/compare/v4.5.0-rc.2...v4.6.0-rc.2) (2025-09-21)
+
+
+### Features
+
+* jump queue ([a3cf7fc](https://github.com/pachinki/release-please/commit/a3cf7fc446855616c4551e727dcbdbae7e07bcca))
+* jump queue ([79a96fb](https://github.com/pachinki/release-please/commit/79a96fbee016409ef8539cccbe987d58cfab36f0))
+
 ## [4.4.0](https://github.com/pachinki/release-please/compare/v4.3.0...v4.4.0) (2025-09-21)
 
 
