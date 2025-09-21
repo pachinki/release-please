@@ -3,10 +3,6 @@ name: Release (Dry Run)
 on:
   # Reusable invocation from other workflows
   workflow_call:
-    # This workflow now wraps the composite action located at .github/actions/release-dry-run
-    # Prefer using the composite action directly if you only need the job steps
-    # and want to embed them inside an existing workflow matrix. Use workflow_call
-    # when you want a single standardized interface across many repos.
     inputs:
       target-branch:
         description: "Default / target branch used for computing next version"

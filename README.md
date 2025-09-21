@@ -254,10 +254,6 @@ The release dry-run workflow now includes automatic protection for major version
     enforce-major-approval: true  # default: true
 ```
 
-**To set up automatic review requests:**
-1. Create `.github/CODEOWNERS` file with senior maintainers
-2. Configure branch protection rules requiring CODEOWNERS approval
-3. Major bumps will automatically request reviews from specified users
 
 **Example CODEOWNERS:**
 ```
