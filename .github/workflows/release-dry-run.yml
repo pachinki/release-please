@@ -49,13 +49,17 @@ on:
         value: ${{ jobs.dry-run.outputs.final_exit_code }}
   # Keep original ad‑hoc triggers for local PR experimentation (optional)
   pull_request:
-    paths:
-      - ".github/workflows/**"
-      - "release-please-config.json"
-      - "CHANGELOG.md"
-      - "**/*.sh"
-      - "**/*.md"
-      - "**/*.txt"
+    # Run on all PRs for testing major bump protection
+    types: [opened, synchronize, reopened]
+    # Uncomment below to limit to specific paths:
+    # paths:
+    #   - ".github/workflows/**"
+    #   - ".github/actions/**"
+    #   - "release-please-config.json"
+    #   - "CHANGELOG.md"
+    #   - "**/*.sh"
+    #   - "**/*.md"
+    #   - "**/*.txt"
     
   workflow_dispatch: {}
 
