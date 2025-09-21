@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.3.0](https://github.com/pachinki/release-please/compare/v4.2.0...v4.3.0) (2025-09-21)
+
+
+### Features
+
+* pre-release functionality updates ([3e0e05f](https://github.com/pachinki/release-please/commit/3e0e05f4a4bc9a0670227be6345dbcc6ff348937))
+
 ## [4.2.0](https://github.com/pachinki/release-please/compare/v4.1.0...v4.2.0) (2025-09-21)
 
 
