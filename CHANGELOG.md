@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.5.0](https://github.com/pachinki/release-please/compare/v4.4.0...v4.5.0) (2025-09-21)
+
+
+### Features
+
+* add simple test feature ([3354b5f](https://github.com/pachinki/release-please/commit/3354b5fc61addcb2b230e0710b03a5132aba7ccc))
+* add simple test feature ([6c8e460](https://github.com/pachinki/release-please/commit/6c8e4600d2db77e62af239049a5b363282fa0d98))
+
 ## [4.4.0](https://github.com/pachinki/release-please/compare/v4.3.0...v4.4.0) (2025-09-21)
 
 
