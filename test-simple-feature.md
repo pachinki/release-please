@@ -7,5 +7,6 @@ Expected behavior:
 - Current version: v4.4.0
 - Next version should be: v4.5.0 (minor bump due to feat)
 - Should create clean release without RC versions
+- pre release 1 - initial
 
 Date: September 22, 2025
