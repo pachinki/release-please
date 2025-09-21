@@ -211,16 +211,8 @@ runs:
         BASE='${{ steps.compute-base.outputs.base_version }}'
         RC_NUMBER='${{ steps.compute-rc.outputs.rc_number }}'
         
-        # Create body with proper newlines
-        BODY_RAW=$(cat << EOF
-Pre-release $TAG
-
-Base version: $BASE
-RC number: $RC_NUMBER
-
-$NOTES
-EOF
-        )
+        # Create body with proper newlines using printf instead of heredoc
+        BODY_RAW=$(printf "Pre-release %s\n\nBase version: %s\nRC number: %s\n\n%s" "$TAG" "$BASE" "$RC_NUMBER" "$NOTES")
         export BODY_RAW
         BODY_ESCAPED=$(python3 -c "import json,os; print(json.dumps(os.environ.get('BODY_RAW','')))" )
         API='${{ github.api_url }}'
@@ -245,3 +237,4 @@ EOF
           echo "* RC Number: ${{ steps.compute-rc.outputs.rc_number }}";
           echo "* Predicted Normal Version: ${{ steps.predict.outputs.predicted_version }}";
         } >> $GITHUB_STEP_SUMMARY
+
