@@ -12,10 +12,10 @@ Using [release-please](https://github.com/google-github-actions/release-please-a
 
 | Commit style (examples) | Effect on version | Notes |
 |-------------------------|-------------------|-------|
-| `fix: handle null input` | Patch bump (X.Y.Z → X.Y.(Z+1)) | Bug fixes only |
+| `fix: handle null input` <br><br> `ci: changes to continuous integration scripts` | Patch bump (X.Y.Z → X.Y.(Z+1)) | Bug fixes only |
 | `feat: add user export`  | Minor bump (X.Y.Z → X.(Y+1).0) | New backwards‑compatible feature |
 | <br> `feat!: change auth flow` <br><br> `refactor!: drop legacy API` <br><br> `BREAKING CHANGE: removed field` | Major bump ((X+1).0.0) | Use `!` after type or add a `BREAKING CHANGE:` footer |
-| <br> `docs: documentation changes` <br><br> `chore: miscellaneous tasks like build processes or auxiliary tools` <br><br> `refactor: code refactoring without adding features or fixing bugs` <br><br> `style: code style changes, linter fixes (formatting, missing semicolons, etc.)` <br><br> `ci: changes to continuous integration scripts` | No release by itself | Unless combined with a feat/fix or you include a manual release trigger |
+| <br> `docs: documentation changes` <br><br> `chore: miscellaneous tasks like build processes or auxiliary tools` <br><br> `refactor: code refactoring without adding features or fixing bugs` <br><br> `style: code style changes, linter fixes (formatting, missing semicolons, etc.)` | No release by itself | Unless combined with a feat/fix or you include a manual release trigger |
 
 If no commits with a bump-triggering type are merged, no new release is created.
 
