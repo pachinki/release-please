@@ -136,100 +136,71 @@ runs:
         echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
         echo "Current tag: $CURRENT_TAG" | tee -a baseline.log
 
-    - name: Predict next tag after merge using release-please action
-      id: forward_predict_action
-      if: github.event_name == 'pull_request'
-      uses: googleapis/release-please-action@v4
-      with:
-        release-type: ${{ inputs.release-type }}
-        config-file: ${{ inputs.config-file }}
-        manifest-file: ${{ inputs.manifest-file }}
-        include-component-in-tag: false
-        token: ${{ github.token }}
-
-    - name: Process release-please outputs for PR prediction
+    - name: Predict next tag after merge using conventional commits
       id: forward_predict
       if: github.event_name == 'pull_request'
       shell: bash
       run: |
         set -euo pipefail
-
-        # Get outputs from release-please action
-        RELEASE_CREATED="${{ steps.forward_predict_action.outputs.release_created }}"
-        TAG_NAME="${{ steps.forward_predict_action.outputs.tag_name }}"
-        PR_CREATED="${{ steps.forward_predict_action.outputs.pr_created }}"
-        PR_NUMBER="${{ steps.forward_predict_action.outputs.pr_number }}"
-
-        echo "Release-please action outputs:" | tee -a baseline.log
-        echo "  release_created: $RELEASE_CREATED" | tee -a baseline.log
-        echo "  tag_name: $TAG_NAME" | tee -a baseline.log
-        echo "  pr_created: $PR_CREATED" | tee -a baseline.log
-        echo "  pr_number: $PR_NUMBER" | tee -a baseline.log
-
-        # Determine what would happen if merged
+        TARGET='${{ inputs['target-branch'] }}'
         CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
 
-        if [ -n "$TAG_NAME" ] && [ "$TAG_NAME" != "null" ] && [ "$TAG_NAME" != "" ]; then
-          # Release-please would create a release with this tag
-          NEXT_TAG="$TAG_NAME"
-          echo "Release-please would create tag: $NEXT_TAG" | tee -a baseline.log
-        elif [ "$PR_CREATED" = "true" ] || [ -n "$PR_NUMBER" ]; then
-          # A release PR would be created, estimate the version from manifest + commits
-          # Read current manifest version
-          MANIFEST_VERSION=$(cat '${{ inputs.manifest-file }}' | grep -o '"[0-9.]*"' | head -1 | tr -d '"' || echo "")
-          if [ -n "$MANIFEST_VERSION" ]; then
-            # Check commits for bump type
-            COMMITS=$(git log $CURRENT_TAG..HEAD --pretty=format:'%s' 2>/dev/null || echo "")
-            if echo "$COMMITS" | grep -qE '^feat(\(|:)'; then
-              # Has feat commits, would be minor bump
-              IFS=. read -r MAJ MIN PAT <<< "$MANIFEST_VERSION"
-              MIN=$((MIN+1))
-              PAT=0
-              NEXT_TAG="v$MAJ.$MIN.$PAT"
-            elif echo "$COMMITS" | grep -qE '^fix(\(|:)'; then
-              # Has fix commits, would be patch bump
-              IFS=. read -r MAJ MIN PAT <<< "$MANIFEST_VERSION"
-              PAT=$((PAT+1))
-              NEXT_TAG="v$MAJ.$MIN.$PAT"
-            else
-              NEXT_TAG="$CURRENT_TAG"
-            fi
-          else
-            NEXT_TAG="$CURRENT_TAG"
-          fi
-          echo "Estimated next tag from manifest and commits: $NEXT_TAG" | tee -a baseline.log
+        echo "Analyzing commits for version prediction..." | tee -a baseline.log
+        echo "Current tag: $CURRENT_TAG" | tee -a baseline.log
+
+        # Get current manifest version
+        MANIFEST_VERSION=$(cat '${{ inputs.manifest-file }}' | grep -o '"[0-9.]*"' | head -1 | tr -d '"' || echo "")
+        echo "Manifest version: $MANIFEST_VERSION" | tee -a baseline.log
+
+        # Analyze commits since last tag for bump type
+        COMMITS_SINCE_TAG=$(git log $CURRENT_TAG..HEAD --pretty=format:'%s' 2>/dev/null || echo "")
+        echo "Commits since $CURRENT_TAG:" | tee -a baseline.log
+        echo "$COMMITS_SINCE_TAG" | tee -a baseline.log
+
+        # Also check just the PR commits
+        PR_COMMITS=$(git log origin/$TARGET..HEAD --pretty=format:'%s' 2>/dev/null || echo "")
+        echo "PR commits:" | tee -a baseline.log
+        echo "$PR_COMMITS" | tee -a baseline.log
+
+        # Determine bump type from ALL commits since last tag (not just PR)
+        ALL_COMMITS="$COMMITS_SINCE_TAG"
+
+        if echo "$ALL_COMMITS" | grep -qE '^[^:]*!:|BREAKING CHANGE'; then
+          BUMP=major
+          echo "Found breaking changes - major bump" | tee -a baseline.log
+        elif echo "$ALL_COMMITS" | grep -qE '^feat(\(|:)'; then
+          BUMP=minor
+          echo "Found feat commits - minor bump" | tee -a baseline.log
+        elif echo "$ALL_COMMITS" | grep -qE '^(fix|perf)(\(|:)'; then
+          BUMP=patch
+          echo "Found fix/perf commits - patch bump" | tee -a baseline.log
         else
-          # No release would be created
-          NEXT_TAG="$CURRENT_TAG"
-          echo "No release would be created, staying at: $NEXT_TAG" | tee -a baseline.log
-        fi
-
-        # Determine bump type
-        CURRENT_VER=${CURRENT_TAG#v}
-        NEXT_VER=${NEXT_TAG#v}
-
-        if [ "$CURRENT_VER" = "$NEXT_VER" ]; then
           BUMP=none
-        else
-          # Parse version numbers
-          IFS=. read -r C_MAJ C_MIN C_PAT <<< "${CURRENT_VER%%-*}"
-          IFS=. read -r N_MAJ N_MIN N_PAT <<< "${NEXT_VER%%-*}"
-          
-          if [ "$N_MAJ" -gt "$C_MAJ" ]; then
-            BUMP=major
-          elif [ "$N_MIN" -gt "$C_MIN" ]; then
-            BUMP=minor
-          elif [ "$N_PAT" -gt "$C_PAT" ]; then
-            BUMP=patch
-          else
-            BUMP=none
-          fi
+          echo "No significant commits found - no bump" | tee -a baseline.log
         fi
+
+        # Calculate next version from current tag
+        CURRENT_VER=${CURRENT_TAG#v}
+        if [[ ! "$CURRENT_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          IFS=. read -r C_MAJ C_MIN C_PAT <<< "$CURRENT_VER"
+          C_MAJ=${C_MAJ:-0}; C_MIN=${C_MIN:-0}; C_PAT=${C_PAT:-0}
+          CURRENT_VER="$C_MAJ.$C_MIN.$C_PAT"
+        fi
+        IFS=. read -r MAJ MIN PAT <<< "$CURRENT_VER"
+
+        case $BUMP in
+          major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
+          minor) MIN=$((MIN+1)); PAT=0 ;;
+          patch) PAT=$((PAT+1)) ;;
+          none) : ;;
+        esac
+
+        NEXT_VER="$MAJ.$MIN.$PAT"
+        NEXT_TAG="v$NEXT_VER"
 
         echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
         echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
         echo "Next tag after merge: $NEXT_TAG (bump: $BUMP)" | tee -a baseline.log
-        echo "Using release-please action ensures consistency with actual release workflow" | tee -a baseline.log
 
     - name: Predict next tag for current state (non-PR events)
       id: current_predict
@@ -237,68 +208,53 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        TARGET='${{ inputs['target-branch'] }}'
-
-        # Use release-please CLI to see what the current state would release
-        echo "Running release-please in dry-run mode for current state..." | tee -a baseline.log
-
-        # Set up git config (required for release-please)
-        git config user.name github-actions[bot] || true
-        git config user.email 41898282+github-actions[bot]@users.noreply.github.com || true
-
-        # Run release-please in dry-run mode
-        RELEASE_OUTPUT=$(release-please release-pr \
-          --release-type='${{ inputs.release-type }}' \
-          --target-branch="$TARGET" \
-          --config-file='${{ inputs.config-file }}' \
-          --manifest-file='${{ inputs.manifest-file }}' \
-          --dry-run 2>&1 || true)
-
-        echo "Release-please output for current state:" | tee -a baseline.log
-        echo "$RELEASE_OUTPUT" | tee -a baseline.log
-
-        # Parse the output to extract version information
-        NEXT_TAG=$(echo "$RELEASE_OUTPUT" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
-
-        if [ -z "$NEXT_TAG" ]; then
-          # Fallback: try to extract from "release" or "version" mentions
-          NEXT_VER=$(echo "$RELEASE_OUTPUT" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
-          if [ -n "$NEXT_VER" ]; then
-            NEXT_TAG="v$NEXT_VER"
-          else
-            # No version change detected, use current tag
-            NEXT_TAG='${{ steps.baseline.outputs.current_tag }}'
-            echo "No version change detected, staying at $NEXT_TAG" | tee -a baseline.log
-          fi
-        fi
-
-        # Determine bump type by comparing with current tag
         CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
-        CURRENT_VER=${CURRENT_TAG#v}
-        NEXT_VER=${NEXT_TAG#v}
 
-        if [ "$CURRENT_VER" = "$NEXT_VER" ]; then
-          BUMP=none
+        echo "Analyzing current state for version prediction..." | tee -a baseline.log
+        echo "Current tag: $CURRENT_TAG" | tee -a baseline.log
+
+        # Analyze commits since last tag for bump type
+        COMMITS_SINCE_TAG=$(git log $CURRENT_TAG..HEAD --pretty=format:'%s' 2>/dev/null || echo "")
+        echo "Commits since $CURRENT_TAG:" | tee -a baseline.log
+        echo "$COMMITS_SINCE_TAG" | tee -a baseline.log
+
+        # Determine bump type from commits since last tag
+        if echo "$COMMITS_SINCE_TAG" | grep -qE '^[^:]*!:|BREAKING CHANGE'; then
+          BUMP=major
+          echo "Found breaking changes - major bump" | tee -a baseline.log
+        elif echo "$COMMITS_SINCE_TAG" | grep -qE '^feat(\(|:)'; then
+          BUMP=minor
+          echo "Found feat commits - minor bump" | tee -a baseline.log
+        elif echo "$COMMITS_SINCE_TAG" | grep -qE '^(fix|perf)(\(|:)'; then
+          BUMP=patch
+          echo "Found fix/perf commits - patch bump" | tee -a baseline.log
         else
-          # Parse version numbers
-          IFS=. read -r C_MAJ C_MIN C_PAT <<< "${CURRENT_VER%%-*}"
-          IFS=. read -r N_MAJ N_MIN N_PAT <<< "${NEXT_VER%%-*}"
-          
-          if [ "$N_MAJ" -gt "$C_MAJ" ]; then
-            BUMP=major
-          elif [ "$N_MIN" -gt "$C_MIN" ]; then
-            BUMP=minor
-          elif [ "$N_PAT" -gt "$C_PAT" ]; then
-            BUMP=patch
-          else
-            BUMP=none
-          fi
+          BUMP=none
+          echo "No significant commits found - no bump" | tee -a baseline.log
         fi
+
+        # Calculate next version from current tag
+        CURRENT_VER=${CURRENT_TAG#v}
+        if [[ ! "$CURRENT_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          IFS=. read -r C_MAJ C_MIN C_PAT <<< "$CURRENT_VER"
+          C_MAJ=${C_MAJ:-0}; C_MIN=${C_MIN:-0}; C_PAT=${C_PAT:-0}
+          CURRENT_VER="$C_MAJ.$C_MIN.$C_PAT"
+        fi
+        IFS=. read -r MAJ MIN PAT <<< "$CURRENT_VER"
+
+        case $BUMP in
+          major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
+          minor) MIN=$((MIN+1)); PAT=0 ;;
+          patch) PAT=$((PAT+1)) ;;
+          none) : ;;
+        esac
+
+        NEXT_VER="$MAJ.$MIN.$PAT"
+        NEXT_TAG="v$NEXT_VER"
 
         echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
         echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
         echo "Current state would create: $NEXT_TAG (bump: $BUMP)" | tee -a baseline.log
-        echo "Using release-please CLI ensures consistency with actual release workflow" | tee -a baseline.log
 
     - name: Check for Version Conflicts
       if: github.event_name == 'pull_request'
