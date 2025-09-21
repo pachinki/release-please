@@ -43,7 +43,7 @@ on:
       final_exit_code:
         description: "Exit code returned by release-please CLI (0 still expected even on parse fallback)"
         value: ${{ jobs.dry-run.outputs.final_exit_code }}
-  # Keep original ad‑hoc triggers for local PR experimentation (optional)
+
   pull_request:
     # Run on all PRs for testing major bump protection
     types: [opened, synchronize, reopened]
