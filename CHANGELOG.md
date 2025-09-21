@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.0](https://github.com/pachinki/release-please/compare/v4.0.0...v4.1.0) (2025-09-21)
+
+
+### Features
+
+* test pre releasetag condition ([#42](https://github.com/pachinki/release-please/issues/42)) ([6f54e50](https://github.com/pachinki/release-please/commit/6f54e50a00e81e4c585dc6d3ebc77b0633c1d123))
+
 ## [4.0.0](https://github.com/pachinki/release-please/compare/v3.1.0...v4.0.0) (2025-09-21)
 
 
