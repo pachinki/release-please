@@ -1,5 +1,21 @@
 # Changelog
 
+## [4.0.0](https://github.com/pachinki/release-please/compare/v3.1.0...v4.0.0) (2025-09-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* Implemented comprehensive major bump protection with:
+    - Automatic labeling (major-release, requires-approval)
+    - Warning comments with breaking change checklists
+    - CODEOWNERS integration for review automation
+    - Visual warnings in dry-run comments
+    - Workflow trigger improvements for broader PR coverage
+
+### Features
+
+* major bump protection implementation and testing ([81224ec](https://github.com/pachinki/release-please/commit/81224ecab1d8144f0b6f0beb0732bc4083416289))
+
 ## [3.1.0](https://github.com/pachinki/release-please/compare/v3.0.1...v3.1.0) (2025-09-20)
 
 
