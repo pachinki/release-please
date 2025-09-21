@@ -249,6 +249,92 @@ git push
 - Check repository visibility settings
 - Verify release assets are uploaded correctly
 
+## FAQ - Common Scenarios
+
+### Q: What happens if someone else releases while I'm testing an RC?
+
+**Scenario:** You created `v4.1.0-rc.1` and `v4.1.0-rc.2` on your feature branch, but someone else merged their changes and released `v4.1.0` before your PR was ready. Now the dry-run says your PR will create `v4.2.0`.
+
+**Solution (Recommended - Rebase Approach):**
+
+1. **Rebase your feature branch onto the new release:**
+   ```bash
+   git checkout your-feature-branch
+   git rebase v4.1.0
+   ```
+
+2. **Continue with RC workflow for the new version:**
+   ```bash
+   gh workflow run pre-release-rc.yml \
+     --ref your-feature-branch \
+     --field base-version=4.2.0
+   ```
+   This creates `v4.2.0-rc.1` with your changes properly based on `v4.1.0`.
+
+3. **Clean up orphaned RC tags (optional):**
+   ```bash
+   git tag -d v4.1.0-rc.1 v4.1.0-rc.2
+   git push origin :refs/tags/v4.1.0-rc.1
+   git push origin :refs/tags/v4.1.0-rc.2
+   ```
+
+4. **Complete your testing and merge** - This will create `v4.2.0`.
+
+**Why this happens:** This is normal in concurrent development. Multiple teams can work on features simultaneously, and whoever merges first gets that version number.
+
+**Alternative (Merge Approach):**
+```bash
+git checkout your-feature-branch
+git merge v4.1.0
+# Then continue with v4.2.0 RC workflow
+```
+
+### Q: Should RC tags be deleted after the final release?
+
+**Answer:** **Keep them!** RC tags serve as valuable historical records:
+- 🔍 **Audit trail** - Complete history of what was tested
+- 🐛 **Debugging** - Can check out exact RC version if issues arise  
+- 📋 **Compliance** - Enterprise environments require traceability
+- 🔄 **Rollback** - Reference specific RC if emergency rollback needed
+
+**Example healthy tag structure:**
+```
+v4.0.0
+v4.1.0-rc.1  ← Keep these
+v4.1.0-rc.2  ← Keep these  
+v4.1.0       ← Final release
+v4.2.0-rc.1  ← Keep these
+v4.2.0       ← Final release
+```
+
+### Q: Can I create RCs for patch releases?
+
+**Answer:** Yes! Use the same workflow:
+```bash
+gh workflow run pre-release-rc.yml \
+  --ref your-hotfix-branch \
+  --field base-version=4.1.1
+```
+
+This is especially useful for critical hotfixes that need testing before production deployment.
+
+### Q: What if my RC workflow fails?
+
+**Common solutions:**
+1. **Check version conflicts** - Ensure no newer version already exists
+2. **Verify branch permissions** - Make sure you can create tags on the branch
+3. **Review base version** - Ensure it's higher than the latest existing tag
+4. **Check for typos** - Verify version format (e.g., `4.1.0`, not `v4.1.0`)
+
+**Debug workflow:**
+```bash
+# Check latest tag
+git describe --tags --abbrev=0
+
+# Check what the dry-run suggests
+# Run dry-run workflow on your branch first
+```
+
 ## Advanced Usage
 
 ### Custom RC Notes
