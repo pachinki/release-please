@@ -161,6 +161,11 @@ runs:
         git config user.email 41898282+github-actions[bot]@users.noreply.github.com || true
 
         # Run release-please in dry-run mode
+        echo "Current working directory: $(pwd)" | tee -a baseline.log
+        echo "Config file exists: $(test -f '${{ inputs.config-file }}' && echo 'yes' || echo 'no')" | tee -a baseline.log
+        echo "Manifest file exists: $(test -f '${{ inputs.manifest-file }}' && echo 'yes' || echo 'no')" | tee -a baseline.log
+
+        # Run release-please in dry-run mode to get the next version
         RELEASE_OUTPUT=$(release-please release-pr \
           --release-type='${{ inputs.release-type }}' \
           --target-branch="$TARGET" \
@@ -168,24 +173,46 @@ runs:
           --manifest-file='${{ inputs.manifest-file }}' \
           --dry-run 2>&1 || true)
 
-        echo "Release-please output:" | tee -a baseline.log
+        echo "Release-please dry-run output:" | tee -a baseline.log
         echo "$RELEASE_OUTPUT" | tee -a baseline.log
 
+        # Also try the release command to see what it would actually do
+        RELEASE_CMD_OUTPUT=$(release-please release \
+          --release-type='${{ inputs.release-type }}' \
+          --target-branch="$TARGET" \
+          --config-file='${{ inputs.config-file }}' \
+          --manifest-file='${{ inputs.manifest-file }}' \
+          --dry-run 2>&1 || true)
+
+        echo "Release-please release dry-run output:" | tee -a baseline.log
+        echo "$RELEASE_CMD_OUTPUT" | tee -a baseline.log
+
         # Parse the output to extract version information
-        # release-please outputs the PR title which contains the version
-        NEXT_TAG=$(echo "$RELEASE_OUTPUT" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
+        # Try multiple patterns to find version
+        NEXT_TAG=""
+
+        # Look for version in both outputs
+        for OUTPUT in "$RELEASE_OUTPUT" "$RELEASE_CMD_OUTPUT"; do
+          if [ -z "$NEXT_TAG" ]; then
+            # Try to find version in format "vX.Y.Z"
+            NEXT_TAG=$(echo "$OUTPUT" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
+          fi
+          if [ -z "$NEXT_TAG" ]; then
+            # Try to find version without 'v' prefix
+            NEXT_VER=$(echo "$OUTPUT" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
+            if [ -n "$NEXT_VER" ]; then
+              NEXT_TAG="v$NEXT_VER"
+            fi
+          fi
+        done
+
+        echo "Parsed next tag: $NEXT_TAG" | tee -a baseline.log
 
         if [ -z "$NEXT_TAG" ]; then
-          # Fallback: try to extract from "release" or "version" mentions
-          NEXT_VER=$(echo "$RELEASE_OUTPUT" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
-          if [ -n "$NEXT_VER" ]; then
-            NEXT_TAG="v$NEXT_VER"
-          else
-            # No version change detected
-            CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
-            NEXT_TAG="$CURRENT_TAG"
-            echo "No version change detected, staying at $CURRENT_TAG" | tee -a baseline.log
-          fi
+          # No version change detected
+          CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
+          NEXT_TAG="$CURRENT_TAG"
+          echo "No version change detected, staying at $CURRENT_TAG" | tee -a baseline.log
         fi
 
         # Determine bump type by comparing with current tag
