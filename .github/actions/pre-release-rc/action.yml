@@ -48,6 +48,9 @@ outputs:
   predicted_version:
     description: "Predicted next normal version (if any)"
     value: ${{ steps.predict.outputs.predicted_version }}
+  version_conflict_detected:
+    description: "True if target version already exists as a release"
+    value: ${{ steps.compute-rc.outputs.conflict_detected }}
 
 runs:
   using: "composite"
@@ -147,6 +150,21 @@ runs:
       run: |
         set -euo pipefail
         BASE='${{ steps.compute-base.outputs.base_version }}'
+        
+        # Check for version conflicts
+        TARGET_VERSION="v${BASE}"
+        if git tag --list | grep -q "^${TARGET_VERSION}$"; then
+          echo "🚨 WARNING: Target version ${TARGET_VERSION} already exists!"
+          echo "🏷️  This means your RC is targeting a version that was already released."
+          echo "📋 Consider:"
+          echo "   1. Abandoning this RC and creating a new one for the next version"
+          echo "   2. Coordinating with team about release conflicts"
+          echo "   3. Using manual version override if this RC should supersede existing release"
+          echo ""
+          echo "conflict_detected=true" >> $GITHUB_OUTPUT
+        else
+          echo "conflict_detected=false" >> $GITHUB_OUTPUT
+        fi
 
         echo "DEBUG: BASE=$BASE"
 
