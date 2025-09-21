@@ -95,7 +95,7 @@ jobs:
       - name: Summary
         run: |
           {
-            echo '### RC Created (Wrapper Workflow)'
+            echo '### RC Created'
             echo "* Base Version: ${{ steps.rc.outputs.base_version }}"
             echo "* RC Tag: ${{ steps.rc.outputs.rc_tag }}"
             echo "* RC Number: ${{ steps.rc.outputs.rc_number }}"
