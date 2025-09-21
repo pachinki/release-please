@@ -84,6 +84,31 @@ runs:
         # Make sure we have the latest default branch ref (important for PR context)
         git fetch origin "${{ inputs['target-branch'] }}" --depth=200 2>/dev/null || true
 
+    - name: Validate PR Title (Prevent Release Issues)
+      if: ${{ github.event_name == 'pull_request' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        PR_TITLE="${{ github.event.pull_request.title }}"
+        echo "🔍 Checking PR title: $PR_TITLE"
+        
+        # Check if PR title follows conventional commit format
+        if ! echo "$PR_TITLE" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+'; then
+          echo "❌ ERROR: PR title must follow conventional commit format!"
+          echo ""
+          echo "Examples:"
+          echo "  ✅ feat: add new functionality"
+          echo "  ✅ fix: resolve login issue" 
+          echo "  ✅ chore: update dependencies"
+          echo ""
+          echo "Current title: '$PR_TITLE'"
+          echo ""
+          echo "⚠️  This title becomes the merge commit message and must be conventional for releases to work!"
+          echo "🔧 Fix: Edit your PR title to use format 'type: description'"
+          exit 1
+        fi
+        echo "✅ PR title follows conventional commit format"
+
     - name: Get current tag baseline
       id: baseline
       shell: bash
