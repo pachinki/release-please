@@ -1,0 +1,8 @@
+Test file to verify version consistency after RC tag cleanup.
+
+Expected behavior:
+- Current tag: v4.4.0
+- Next tag: v4.5.0 (minor bump due to feat commits)
+- No more 5.0.0-rc.2 confusion
+
+This test should now have consistent version prediction between dry-run and actual release.
