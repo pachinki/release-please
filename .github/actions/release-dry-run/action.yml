@@ -127,15 +127,11 @@ runs:
           BUMP=major
         elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*feat(\(|:)' ; then
           BUMP=minor
-        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*(fix|perf|refactor|chore|ci|build)(\(|:)|bugfix|hotfix' ; then
+        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*(fix|perf)(\(|:)|bugfix|hotfix' ; then
           BUMP=patch
         else
-          # Explicitly check for non-bumping commit types
-          if echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*(docs|style|test)(\(|:)'; then
-            BUMP=none
-          else
-            BUMP=none
-          fi
+          # All other commit types result in no version bump
+          BUMP=none
         fi
         
         # Calculate next version
