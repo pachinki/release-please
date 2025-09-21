@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.4.0](https://github.com/pachinki/release-please/compare/v4.3.0...v4.4.0) (2025-09-21)
+
+
+### Features
+
+* fix pre release 3 ([a4d6d95](https://github.com/pachinki/release-please/commit/a4d6d958a0bd8f0591f97f62ef5df0ca0269de23))
+* initial pre release 3 ([872faf4](https://github.com/pachinki/release-please/commit/872faf4105eea120bc952a089ac03cf225644297))
+* nothig to commit ([c286769](https://github.com/pachinki/release-please/commit/c286769c3bf294e41f85c93ceb1e0cc54a9f4558))
+* nothig to commit ([c8e6b77](https://github.com/pachinki/release-please/commit/c8e6b77a2c158e993b021e915e67f8fc7caf64f1))
+* pre-release ([6069930](https://github.com/pachinki/release-please/commit/60699307c2273848aa585a9b44731994bba7b59b))
+
 ## [4.3.0](https://github.com/pachinki/release-please/compare/v4.2.0...v4.3.0) (2025-09-21)
 
 
