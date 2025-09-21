@@ -2,9 +2,6 @@ name: Pre-Release (RC Tag)
 
 on:
   workflow_call:
-    # Wrapper around composite action in .github/actions/pre-release-rc
-    # For multi-repo usage prefer calling this workflow; for fine-grained
-    # matrix customization call the composite action directly.
     inputs:
       base_version:
         description: "Base semantic version override (e.g. 1.2.0)"
