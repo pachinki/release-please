@@ -1,0 +1,11 @@
+This file is created to test version consistency between dry-run and actual release.
+
+The dry-run should now predict the same version that the actual release workflow will create, 
+because both now use the same release-please CLI with identical configuration.
+
+Expected behavior:
+- Dry-run prediction should match actual release version
+- No more discrepancy between predicted 4.5.0 and actual 5.0.0-rc.2
+- Both workflows use release-please CLI with same config files
+
+This change is a feature addition to test the consistency fix.
