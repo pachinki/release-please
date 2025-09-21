@@ -5,30 +5,6 @@ branding:
   icon: "git-branch"
   color: "purple"
 
-# Composite action implementing the logic formerly in pre-release-rc workflow.
-# It will:
-# 1. Optionally predict next normal version (using release-please dry run)
-# 2. Determine base version via input/prediction/fallback to commit scan
-# 3. Compute next rc number (rc.1, rc.2, ...)
-# 4. Create annotated tag if it does not exist
-# 5. Create or update GitHub prerelease associated with the RC tag
-#
-# Usage example:
-# jobs:
-#   create-rc:
-#     runs-on: self-hosted
-#     steps:
-#       - uses: actions/checkout@v4
-#       - id: rc
-#         uses: ./.github/actions/pre-release-rc
-#         with:
-#           target-branch: main
-#           base-version: ''          # optional, takes priority if provided
-#           notes: 'Testing RC'
-#       - run: echo "RC tag => ${{ steps.rc.outputs.rc_tag }}"
-#
-# Required permissions for calling workflow/job: contents: write (for tag) and (optionally) issues/pr if extended.
-
 inputs:
   target-branch:
     description: "Default branch to compare for prediction"
