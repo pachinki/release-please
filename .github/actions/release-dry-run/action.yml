@@ -110,7 +110,7 @@ runs:
         TARGET='${{ inputs['target-branch'] }}'
         CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
         CURRENT_VER=${CURRENT_TAG#v}
-        
+
         # Normalize to three-part semver
         if [[ ! "$CURRENT_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           IFS=. read -r LV_M LV_m LV_p <<< "$CURRENT_VER"
@@ -118,7 +118,7 @@ runs:
           CURRENT_VER="$LV_M.$LV_m.$LV_p"
         fi
         IFS=. read -r MAJ MIN PAT <<< "$CURRENT_VER"
-        
+
         # Check PR-only commits for bump type
         PR_COMMITS=$(git log --pretty=format:'%s%n%b' origin/$TARGET..HEAD || true)
         if [ -z "$PR_COMMITS" ]; then
@@ -133,7 +133,7 @@ runs:
           # All other commit types result in no version bump
           BUMP=none
         fi
-        
+
         # Calculate next version
         case $BUMP in
           major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
@@ -141,13 +141,33 @@ runs:
           patch) PAT=$((PAT+1)) ;;
           none) : ;;
         esac
-        
+
         NEXT_VER="$MAJ.$MIN.$PAT"
         NEXT_TAG="v$NEXT_VER"
-        
+
         echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
         echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
         echo "Next tag after merge: $NEXT_TAG (bump: $BUMP)" | tee -a baseline.log
+
+    - name: Check for Version Conflicts
+      if: github.event_name == 'pull_request'
+      id: conflict_check
+      shell: bash
+      run: |
+        set -euo pipefail
+        NEXT_TAG='${{ steps.forward_predict.outputs.next_tag }}'
+        TARGET_BRANCH='${{ inputs['target-branch'] }}'
+
+        # Check if the next tag already exists
+        if git tag | grep -q "^${NEXT_TAG}$"; then
+          echo "version_conflict=true" >> $GITHUB_OUTPUT
+          echo "conflict_message=⚠️ Version conflict detected: Tag $NEXT_TAG already exists!" >> $GITHUB_OUTPUT
+          echo "VERSION CONFLICT: $NEXT_TAG already exists" | tee -a baseline.log
+        else
+          echo "version_conflict=false" >> $GITHUB_OUTPUT
+          echo "conflict_message=" >> $GITHUB_OUTPUT
+          echo "No version conflicts detected" | tee -a baseline.log
+        fi
 
     - name: Compute artifact name
       id: artifact_name
@@ -182,7 +202,7 @@ runs:
         script: |
           const {owner, repo} = context.repo;
           const issue_number = context.issue.number;
-          
+
           // Add major-release and requires-approval labels
           try {
             await github.rest.issues.addLabels({
@@ -195,39 +215,39 @@ runs:
           } catch (error) {
             core.warning(`Failed to add labels: ${error.message}`);
           }
-          
+
           // Post warning comment about major bump
           const warningMarker = '<!-- major-bump-warning -->';
           const currentTag = `${{ steps.baseline.outputs.current_tag }}`;
           const nextTag = `${{ steps.forward_predict.outputs.next_tag }}`;
-          
+
           const warningBody = warningMarker + `
           ## ⚠️ Major Version Bump Detected!
-          
+
           This PR contains **breaking changes** that will create a major release:
-          
+
           - **Current Version**: \`${currentTag}\`
           - **Next Version**: \`${nextTag}\`
           - **Impact**: This is a **BREAKING CHANGE** that may affect consumers
-          
+
           ### Required Actions:
           1. 🏷️ **Labels Added**: \`major-release\`, \`requires-approval\`
           2. 👥 **Review Required**: A senior maintainer must approve this PR
           3. 📋 **Breaking Changes**: Document all breaking changes in the PR description
           4. 📢 **Communication**: Plan release announcement and migration guide
-          
+
           ### Before Merging:
           - [ ] Breaking changes documented
           - [ ] Migration guide provided
           - [ ] Team/consumers notified
           - [ ] Senior maintainer approval obtained
-          
+
           **Do not merge until all requirements are met!**`;
-          
+
           // Check if warning comment already exists
           const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number});
           const existingWarning = comments.find(c => c.body && c.body.includes(warningMarker));
-          
+
           if (existingWarning) {
             await github.rest.issues.updateComment({
               owner,
@@ -245,7 +265,7 @@ runs:
             });
             core.info('Created new major bump warning comment');
           }
-          
+
           // Request reviews from repository maintainers (if CODEOWNERS exists)
           try {
             const codeowners = await github.rest.repos.getContent({
@@ -268,11 +288,26 @@ runs:
           const currentTag = `${{ steps.baseline.outputs.current_tag }}` || 'none';
           const nextTag = `${{ steps.forward_predict.outputs.next_tag }}` || 'none';
           const bumpType = `${{ steps.forward_predict.outputs.bump_type }}` || 'none';
-          
-          // Add warning icon for major bumps
+          const hasVersionConflict = `${{ steps.conflict_check.outputs.version_conflict }}` === 'true';
+          const conflictMessage = `${{ steps.conflict_check.outputs.conflict_message }}`;
+
+          // Add warning icon for major bumps or version conflicts
           const bumpTypeDisplay = bumpType === 'major' ? '⚠️ `major` (BREAKING)' : `\`${bumpType}\``;
-          const headerEmoji = bumpType === 'major' ? '⚠️ ' : '';
-          
+          const headerEmoji = bumpType === 'major' || hasVersionConflict ? '⚠️ ' : '';
+
+          // Build version conflict warning
+          const versionConflictWarning = hasVersionConflict ? `
+
+          > **🚨 VERSION CONFLICT DETECTED!**
+          > 
+          > ${conflictMessage}
+          > 
+          > **Resolution needed:**
+          > 1. Rebase your branch: \`git rebase v${ nextTag.replace('v', '').split('.').slice(0, 2).join('.') }.0\`
+          > 2. Update any RC tags if needed
+          > 3. The version will automatically increment to the next available number
+          ` : '';
+
           const body = marker + `
           ### ${headerEmoji}Release Dry Run Result
 
@@ -282,8 +317,8 @@ runs:
           | Next Tag After Merge | \`${nextTag}\` |
           | Bump Type | ${bumpTypeDisplay} |
 
-          ${bumpType === 'major' ? '> **Warning**: This PR contains breaking changes! Check labels and approval requirements.' : ''}
-          
+          ${bumpType === 'major' ? '> **Warning**: This PR contains breaking changes! Check labels and approval requirements.' : ''}${versionConflictWarning}
+
           _Comment updates automatically on each run._`;
 
           const {owner, repo} = context.repo;
