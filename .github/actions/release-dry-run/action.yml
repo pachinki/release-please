@@ -72,15 +72,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: "20"
-
-    - name: Install release-please CLI
-      shell: bash
-      run: npm install -g release-please
-
     - name: Ensure full git history (best-effort)
       shell: bash
       run: |
@@ -145,78 +136,75 @@ runs:
         echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
         echo "Current tag: $CURRENT_TAG" | tee -a baseline.log
 
-    - name: Predict next tag after merge using release-please
+    - name: Predict next tag after merge using release-please action
+      id: forward_predict_action
+      if: github.event_name == 'pull_request'
+      uses: googleapis/release-please-action@v4
+      with:
+        release-type: ${{ inputs.release-type }}
+        config-file: ${{ inputs.config-file }}
+        manifest-file: ${{ inputs.manifest-file }}
+        include-component-in-tag: false
+        token: ${{ github.token }}
+
+    - name: Process release-please outputs for PR prediction
       id: forward_predict
       if: github.event_name == 'pull_request'
       shell: bash
       run: |
         set -euo pipefail
-        TARGET='${{ inputs['target-branch'] }}'
 
-        # Use release-please CLI in dry-run mode with the same configuration as the actual release workflow
-        echo "Running release-please in dry-run mode to predict next version..." | tee -a baseline.log
+        # Get outputs from release-please action
+        RELEASE_CREATED="${{ steps.forward_predict_action.outputs.release_created }}"
+        TAG_NAME="${{ steps.forward_predict_action.outputs.tag_name }}"
+        PR_CREATED="${{ steps.forward_predict_action.outputs.pr_created }}"
+        PR_NUMBER="${{ steps.forward_predict_action.outputs.pr_number }}"
 
-        # Set up git config (required for release-please)
-        git config user.name github-actions[bot] || true
-        git config user.email 41898282+github-actions[bot]@users.noreply.github.com || true
+        echo "Release-please action outputs:" | tee -a baseline.log
+        echo "  release_created: $RELEASE_CREATED" | tee -a baseline.log
+        echo "  tag_name: $TAG_NAME" | tee -a baseline.log
+        echo "  pr_created: $PR_CREATED" | tee -a baseline.log
+        echo "  pr_number: $PR_NUMBER" | tee -a baseline.log
 
-        # Run release-please in dry-run mode
-        echo "Current working directory: $(pwd)" | tee -a baseline.log
-        echo "Config file exists: $(test -f '${{ inputs.config-file }}' && echo 'yes' || echo 'no')" | tee -a baseline.log
-        echo "Manifest file exists: $(test -f '${{ inputs.manifest-file }}' && echo 'yes' || echo 'no')" | tee -a baseline.log
+        # Determine what would happen if merged
+        CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
 
-        # Run release-please in dry-run mode to get the next version
-        RELEASE_OUTPUT=$(release-please release-pr \
-          --release-type='${{ inputs.release-type }}' \
-          --target-branch="$TARGET" \
-          --config-file='${{ inputs.config-file }}' \
-          --manifest-file='${{ inputs.manifest-file }}' \
-          --dry-run 2>&1 || true)
-
-        echo "Release-please dry-run output:" | tee -a baseline.log
-        echo "$RELEASE_OUTPUT" | tee -a baseline.log
-
-        # Also try the release command to see what it would actually do
-        RELEASE_CMD_OUTPUT=$(release-please release \
-          --release-type='${{ inputs.release-type }}' \
-          --target-branch="$TARGET" \
-          --config-file='${{ inputs.config-file }}' \
-          --manifest-file='${{ inputs.manifest-file }}' \
-          --dry-run 2>&1 || true)
-
-        echo "Release-please release dry-run output:" | tee -a baseline.log
-        echo "$RELEASE_CMD_OUTPUT" | tee -a baseline.log
-
-        # Parse the output to extract version information
-        # Try multiple patterns to find version
-        NEXT_TAG=""
-
-        # Look for version in both outputs
-        for OUTPUT in "$RELEASE_OUTPUT" "$RELEASE_CMD_OUTPUT"; do
-          if [ -z "$NEXT_TAG" ]; then
-            # Try to find version in format "vX.Y.Z"
-            NEXT_TAG=$(echo "$OUTPUT" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
-          fi
-          if [ -z "$NEXT_TAG" ]; then
-            # Try to find version without 'v' prefix
-            NEXT_VER=$(echo "$OUTPUT" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?' | head -1 || echo "")
-            if [ -n "$NEXT_VER" ]; then
-              NEXT_TAG="v$NEXT_VER"
+        if [ -n "$TAG_NAME" ] && [ "$TAG_NAME" != "null" ] && [ "$TAG_NAME" != "" ]; then
+          # Release-please would create a release with this tag
+          NEXT_TAG="$TAG_NAME"
+          echo "Release-please would create tag: $NEXT_TAG" | tee -a baseline.log
+        elif [ "$PR_CREATED" = "true" ] || [ -n "$PR_NUMBER" ]; then
+          # A release PR would be created, estimate the version from manifest + commits
+          # Read current manifest version
+          MANIFEST_VERSION=$(cat '${{ inputs.manifest-file }}' | grep -o '"[0-9.]*"' | head -1 | tr -d '"' || echo "")
+          if [ -n "$MANIFEST_VERSION" ]; then
+            # Check commits for bump type
+            COMMITS=$(git log $CURRENT_TAG..HEAD --pretty=format:'%s' 2>/dev/null || echo "")
+            if echo "$COMMITS" | grep -qE '^feat(\(|:)'; then
+              # Has feat commits, would be minor bump
+              IFS=. read -r MAJ MIN PAT <<< "$MANIFEST_VERSION"
+              MIN=$((MIN+1))
+              PAT=0
+              NEXT_TAG="v$MAJ.$MIN.$PAT"
+            elif echo "$COMMITS" | grep -qE '^fix(\(|:)'; then
+              # Has fix commits, would be patch bump
+              IFS=. read -r MAJ MIN PAT <<< "$MANIFEST_VERSION"
+              PAT=$((PAT+1))
+              NEXT_TAG="v$MAJ.$MIN.$PAT"
+            else
+              NEXT_TAG="$CURRENT_TAG"
             fi
+          else
+            NEXT_TAG="$CURRENT_TAG"
           fi
-        done
-
-        echo "Parsed next tag: $NEXT_TAG" | tee -a baseline.log
-
-        if [ -z "$NEXT_TAG" ]; then
-          # No version change detected
-          CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
+          echo "Estimated next tag from manifest and commits: $NEXT_TAG" | tee -a baseline.log
+        else
+          # No release would be created
           NEXT_TAG="$CURRENT_TAG"
-          echo "No version change detected, staying at $CURRENT_TAG" | tee -a baseline.log
+          echo "No release would be created, staying at: $NEXT_TAG" | tee -a baseline.log
         fi
 
-        # Determine bump type by comparing with current tag
-        CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
+        # Determine bump type
         CURRENT_VER=${CURRENT_TAG#v}
         NEXT_VER=${NEXT_TAG#v}
 
@@ -241,7 +229,7 @@ runs:
         echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
         echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
         echo "Next tag after merge: $NEXT_TAG (bump: $BUMP)" | tee -a baseline.log
-        echo "Using release-please CLI ensures consistency with actual release workflow" | tee -a baseline.log
+        echo "Using release-please action ensures consistency with actual release workflow" | tee -a baseline.log
 
     - name: Predict next tag for current state (non-PR events)
       id: current_predict
