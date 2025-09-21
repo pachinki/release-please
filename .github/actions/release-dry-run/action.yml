@@ -90,7 +90,9 @@ runs:
       run: |
         set -euo pipefail
         PR_TITLE="${{ github.event.pull_request.title }}"
+        HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
         echo "🔍 Checking PR title: $PR_TITLE"
+        echo "🔍 Source branch: $HEAD_BRANCH"
         
         # Check if PR title follows conventional commit format
         if ! echo "$PR_TITLE" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+'; then
@@ -102,6 +104,10 @@ runs:
           echo "  ✅ chore: update dependencies"
           echo ""
           echo "Current title: '$PR_TITLE'"
+          echo ""
+          echo "💡 TIP: Use conventional branch names to get better auto-generated PR titles:"
+          echo "  Branch 'feat/user-export' → PR title 'Feat/user export'"
+          echo "  Branch 'fix/login-bug' → PR title 'Fix/login bug'"
           echo ""
           echo "⚠️  This title becomes the merge commit message and must be conventional for releases to work!"
           echo "🔧 Fix: Edit your PR title to use format 'type: description'"
