@@ -30,6 +30,9 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           include-component-in-tag: false
+          # Ensure consistent behavior
+          target-branch: main
+          skip-github-release: false
 
       - name: Show outputs
         run: |
