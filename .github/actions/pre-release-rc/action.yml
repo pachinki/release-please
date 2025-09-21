@@ -73,6 +73,8 @@ runs:
       run: |
         set -euo pipefail
         echo "Predicting version against branch=$DEFAULT_BRANCH type=$RELEASE_TYPE package=$PACKAGE_NAME path=$RELEASE_PATH"
+        
+        # Try release-please prediction first
         set +e
         release-please release-pr \
           --repo-url ${{ github.repository }} \
@@ -86,6 +88,8 @@ runs:
           --dry-run --debug | tee rp-rc-predict.log
         RC=$?
         set -e
+        
+        # Parse release-please output for version
         VERSION=""
         for pattern in \
           'chore: release [0-9]\+\.[0-9]\+\.[0-9]\+' \
@@ -95,10 +99,52 @@ runs:
           CANDIDATE=$(grep -Eo "$pattern" rp-rc-predict.log | tail -n1 || true)
           [ -n "$CANDIDATE" ] || continue
           VERSION=$(echo "$CANDIDATE" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
+          break
         done
+        
+        # If release-please prediction failed, use fallback logic
+        if [ -z "$VERSION" ]; then
+          echo "Release-please prediction failed, using fallback logic..."
+          
+          # Get the latest tag from main branch
+          git fetch origin "$DEFAULT_BRANCH" --tags --quiet
+          LAST_TAG=$(git tag --merged "origin/$DEFAULT_BRANCH" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || echo 'v0.0.0')
+          echo "Latest tag on $DEFAULT_BRANCH: $LAST_TAG"
+          
+          # Get commits since last tag that would be included in merge
+          MERGE_BASE=$(git merge-base HEAD "origin/$DEFAULT_BRANCH" || echo "origin/$DEFAULT_BRANCH")
+          COMMITS=$(git log --pretty=format:%s "$LAST_TAG..$MERGE_BASE" "$MERGE_BASE..HEAD" | sort -u || true)
+          echo "Commits since $LAST_TAG:"
+          echo "$COMMITS"
+          
+          # Parse semver from last tag
+          BASE_VER=${LAST_TAG#v}
+          IFS=. read -r M m p <<< "$BASE_VER"
+          
+          # Determine bump type from commits
+          if echo "$COMMITS" | grep -Eq 'BREAKING CHANGE|!:'; then
+            M=$((M+1)); m=0; p=0
+            echo "Found breaking change → major bump"
+          elif echo "$COMMITS" | grep -Eq '^feat'; then
+            m=$((m+1)); p=0
+            echo "Found feature → minor bump"
+          elif echo "$COMMITS" | grep -Eq '^fix|^perf'; then
+            p=$((p+1))
+            echo "Found fix/perf → patch bump"
+          else
+            echo "No qualifying commits found for version bump"
+          fi
+          
+          VERSION="$M.$m.$p"
+          echo "Predicted version using fallback: $VERSION"
+        fi
+        
         if [ -n "$VERSION" ]; then
           echo "predicted_version=$VERSION" >> $GITHUB_OUTPUT
           echo "predicted_tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Final predicted version: $VERSION"
+        else
+          echo "Could not determine predicted version"
         fi
         echo "predict_exit_code=$RC" >> $GITHUB_OUTPUT
 
