@@ -210,7 +210,17 @@ runs:
         NOTES='${{ inputs.notes }}'
         BASE='${{ steps.compute-base.outputs.base_version }}'
         RC_NUMBER='${{ steps.compute-rc.outputs.rc_number }}'
-        BODY_RAW="Pre-release $TAG\n\nBase version: $BASE\nRC number: $RC_NUMBER\n\n$NOTES"
+        
+        # Create body with proper newlines
+        BODY_RAW=$(cat << EOF
+Pre-release $TAG
+
+Base version: $BASE
+RC number: $RC_NUMBER
+
+$NOTES
+EOF
+        )
         export BODY_RAW
         BODY_ESCAPED=$(python3 -c "import json,os; print(json.dumps(os.environ.get('BODY_RAW','')))" )
         API='${{ github.api_url }}'
