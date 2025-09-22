@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.4.1](https://github.com/pachinki/release-please/compare/v4.4.0...v4.4.1) (2025-09-22)
+
+
+### Bug Fixes
+
+* add automatic cleanup of orphaned tags to prevent duplicate release errors ([f0b9e46](https://github.com/pachinki/release-please/commit/f0b9e461a540ef708199f84373eea52114eb3b37))
+
 ## [4.4.0](https://github.com/pachinki/release-please/compare/v4.3.1...v4.4.0) (2025-09-22)
 
 
