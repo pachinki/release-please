@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.1](https://github.com/pachinki/release-please/compare/v4.1.0...v4.1.1) (2025-09-22)
+
+
+### Bug Fixes
+
+* trigger clean release workflow after duplicate tag resolution ([1ebe6c7](https://github.com/pachinki/release-please/commit/1ebe6c7fcc26fbac9dca640a3f75e452a246a46f))
+
 ## [4.1.0](https://github.com/pachinki/release-please/compare/v4.0.0...v4.1.0) (2025-09-22)
 
 
