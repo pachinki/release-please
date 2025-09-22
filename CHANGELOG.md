@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.8.0](https://github.com/pachinki/release-please/compare/v4.7.0...v4.8.0) (2025-09-22)
+
+
+### Features
+
+* pre release 1 ([a4ffbc9](https://github.com/pachinki/release-please/commit/a4ffbc9a4b8de4dcb43407dcd6f98d8602d6b5d9))
+
+
+### Bug Fixes
+
+* pre release 1 ([d998633](https://github.com/pachinki/release-please/commit/d9986339ef766f10db45f9fe50ea66fd954fb625))
+
 ## [4.7.0](https://github.com/pachinki/release-please/compare/v4.6.1...v4.7.0) (2025-09-22)
 
 
