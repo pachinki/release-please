@@ -9,5 +9,6 @@ Expected behavior:
 - Should create clean release without RC versions
 - pre release 1 - initial
 - pre release 1 - fix1
+- pre release 2 - initial
 
 Date: September 22, 2025
