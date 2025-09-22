@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.2.1](https://github.com/pachinki/release-please/compare/v3.2.0...v3.2.1) (2025-09-22)
+
+
+### Bug Fixes
+
+* new feature 1 fix ([10e428c](https://github.com/pachinki/release-please/commit/10e428c042f9a6cd7fbc3e74ded6c0350f8ab047))
+* new feature 1 fix ([76d063c](https://github.com/pachinki/release-please/commit/76d063c0cdb78ab38f48ea661109a7d798a5a15b))
+
 ## [3.2.0](https://github.com/pachinki/release-please/compare/v3.1.0...v3.2.0) (2025-09-22)
 
 
