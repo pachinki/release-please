@@ -4,9 +4,8 @@ Using [release-please](https://github.com/google-github-actions/release-please-a
 
 ### TL;DR
 
-1. Write commits using the Conventional Commit prefix (e.g. `feat:`, `fix:`).
-2. Merge to `main`.
-3. The workflow calculates the new version, updates the changelog & creates tags (`vX.Y.Z`, plus floating `vX` & `vX.Y`).
+1. Write commits using the Conventional Commit prefix (e.g. `feat:`, `fix:`, `chore:`).
+2. The workflow calculates the new version, updates the changelog & creates tags (`vX.Y.Z`, plus floating `vX` & `vX.Y`).
 
 ### How version bumps are chosen
 
@@ -66,18 +65,18 @@ Pick the tag that matches the stability you need:
 
 ```yaml
 # ✅ Recommended (tracks non-breaking updates)
-uses: your-org/test-workflow-versioning/.github/workflows/deploy.yml@v1
+uses: your-org/repo-name/.github/workflows/deploy.yml@v1
 
 # ✅ Locked to a minor (only patch bumps)
-uses: your-org/test-workflow-versioning/.github/workflows/deploy.yml@v1.0
+uses: your-org/repo-name/.github/workflows/deploy.yml@v1.0
 
 # ✅ Fully pinned (no movement)
-uses: your-org/test-workflow-versioning/.github/workflows/deploy.yml@v1.0.3
+uses: your-org/repo-name/.github/workflows/deploy.yml@v1.0.3
 ```
 
 #### Migrating existing consumers
 
-1. Search your repos for `test-workflow-versioning@main`.
+1. Search your repos for `repo-name@main`.
 2. Replace with the appropriate tag (usually `@v1`).
 3. Commit with: `chore: stop consuming workflow via @main`.
 4. (Optional) For critical pipelines, pin initially to a full version, then relax to `v1` after validation.
@@ -124,17 +123,17 @@ v1.0    (continues to point at latest 1.0.x patch until no more 1.0 patches)
 #### In another GitHub workflow (reusable action / composite / workflow)
 
 ```yaml
-uses: your-org/test-workflow-versioning@v1       # auto-updates to new minor & patch releases (no breaking changes)
-# uses: your-org/test-workflow-versioning@v1.0   # only patch updates within 1.0.x
-# uses: your-org/test-workflow-versioning@v1.0.3 # exact version (recommended for production reproducibility)
+uses: your-org/repo-name@v1       # auto-updates to new minor & patch releases (no breaking changes)
+uses: your-org/repo-name@v1.0     # only patch updates within 1.0.x
+uses: your-org/repo-name@v1.0.3   # exact version (recommended for production reproducibility)
 ```
 
 #### Cloning source locally
 
 ```bash
-git clone https://github.com/your-org/test-workflow-versioning.git --branch v1 --single-branch
+git clone https://github.com/your-org/repo-name.git --branch v1 --single-branch
 # or for exact bits
-git clone https://github.com/your-org/test-workflow-versioning.git --branch v1.0.0 --single-branch
+git clone https://github.com/your-org/repo-name.git --branch v1.0.0 --single-branch
 ```
 
 #### Updating local floating tags
@@ -144,24 +143,6 @@ Because `v1` / `v1.0` move, fetch with `--force` to update:
 ```bash
 git fetch --tags --force
 ```
-
-#### Referencing Docker images (if you later publish them)
-
-
-
-#### Example Commit messages
-
-Push images under the same scheme for user expectations:
-
-
-```text
-repo/image:1.0.0
-repo/image:1.0    # floating minor
-repo/image:1       # floating major
-```
-
-
-feat: represents a new feature, and correlates to a SemVer minor.
 
 ### Which tag should I use?
 
@@ -226,22 +207,12 @@ The `Release (Dry Run)` workflow predicts the *next* semantic version **without*
 | `predicted_version = 2.0.0` | major bump | Breaking marker (`!:` or footer) detected.
 | Non‑zero `final_exit_code` + version present | tolerated error | CLI failed but parsing/fallback succeeded.
 
-
-### Fallback Limitations
-
-The heuristic is intentionally minimal (e.g. multiple `feat:` still equals one minor bump; no changelog text). If it triggers often, fix the underlying CLI/API issue rather than relying on it.
-
-### Possible Enhancements (Future)
-
-* Add `used_fallback=true` output for visibility.
-* Upload JSON artifact (raw log + parsed metadata) once GHES artifact limitations are resolved.
-* ✅ ~~Enforce label / approval if a major bump is predicted.~~ **IMPLEMENTED**
-
 ### Major Bump Protection
 
 The release dry-run workflow now includes automatic protection for major version bumps (breaking changes):
 
 **When a major bump is detected, the workflow automatically:**
+
 1. 🏷️ **Adds labels**: `major-release` and `requires-approval` 
 2. 📝 **Posts warning comment** with breaking change checklist
 3. 👥 **Requests reviews** from CODEOWNERS (if configured)
