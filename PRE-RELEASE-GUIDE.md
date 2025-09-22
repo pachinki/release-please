@@ -43,10 +43,13 @@ git commit -m "docs: update API documentation"
 git push origin feature/new-api-endpoint
 ```
 
-**Important**: Ensure your PR title follows conventional commits format:
+**Important**
+
+If squashing your commits, please ensure to to comment using the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/?ref=amarjanica.com). Otherwise, your release won't be created.
+
 - ✅ `feat: add user authentication system`
 - ✅ `fix: resolve payment processing bug`
-- ❌ `Update login feature` (won't trigger releases)
+- ❌ `Update login feature` (won't trigger releases) 
 
 ### 2. Predict the Next Version
 
@@ -65,20 +68,15 @@ Based on your commits since the last release:
 
 ### 3. Create RC Release
 
-**Method A: Automatic (via RC Branch)**
-```bash
-# Create RC branch - triggers workflow automatically
-git checkout -b rc/v2.3.0  # Use predicted version
-git push origin rc/v2.3.0
-```
+**Method A: Manual Trigger**
 
-**Method B: Manual Trigger**
 ```bash
 # Via GitHub UI
 # 1. Go to Actions → Pre-Release (RC Tag)
 # 2. Click "Run workflow"
-# 3. Enter base_version: 2.3.0
-# 4. Add optional notes for testers
+# 3. Select the feature-branch
+# 4. Enter base_version: 2.3.0
+# 5. Add optional notes for testers
 
 # Via GitHub CLI (if authenticated)
 gh workflow run pre-release-rc.yml \
@@ -158,7 +156,7 @@ git push origin main
 git cherry-pick <commit-hash>
 git push origin main
 
-# Option C: Create new PR from RC branch
+# Option C: Create new PR from Github GUI
 # (Recommended for audit trail)
 ```
 
