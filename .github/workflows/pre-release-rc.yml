@@ -95,18 +95,4 @@ jobs:
           path: ${{ inputs.path || '.' }}
           create-release: ${{ inputs.create_release || 'true' }}
 
-      - name: Summary
-        run: |
-          {
-            echo '### RC Created (Wrapper Workflow)'
-            echo "* Base Version: ${{ steps.rc.outputs.base_version }}"
-            echo "* RC Tag: ${{ steps.rc.outputs.rc_tag }}"
-            echo "* RC Number: ${{ steps.rc.outputs.rc_number }}"
-            echo "* Predicted normal version: ${{ steps.rc.outputs.predicted_version }}"
-            echo ''
-            echo 'Consumers can test using:'
-            echo ''
-            echo '```yaml'
-            echo 'uses: your-org/REPO/.github/workflows/pipeline-example.yml@${{ steps.rc.outputs.rc_tag }}'
-            echo '```'
-          } >> $GITHUB_STEP_SUMMARY
+

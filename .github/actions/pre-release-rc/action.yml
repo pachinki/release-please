@@ -257,5 +257,4 @@ runs:
           echo "* Base Version: ${{ steps.compute-base.outputs.base_version }}";
           echo "* RC Tag: ${{ steps.compute-rc.outputs.rc_tag }}";
           echo "* RC Number: ${{ steps.compute-rc.outputs.rc_number }}";
-          echo "* Predicted Normal Version: ${{ steps.predict.outputs.predicted_version }}";
         } >> $GITHUB_STEP_SUMMARY
