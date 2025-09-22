@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.3.1](https://github.com/pachinki/release-please/compare/v4.3.0...v4.3.1) (2025-09-22)
+
+
+### Bug Fixes
+
+* improve release workflow with state reconciliation ([be5933f](https://github.com/pachinki/release-please/commit/be5933f49ba282b6253e0411cbd1bb69635f24ba))
+
 ## [4.3.0](https://github.com/pachinki/release-please/compare/v4.2.1...v4.3.0) (2025-09-22)
 
 
