@@ -1,3 +1,0 @@
-new-feature 2
-new-feature 2 -fix
-new-feature 2 -release it again
