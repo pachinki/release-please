@@ -22,6 +22,38 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Reconcile release state
+        run: |
+          echo "🔍 Checking for state inconsistencies..."
+          
+          # Fetch all tags and check for orphaned releases
+          git fetch --tags --force
+          
+          # Find releases without corresponding tags
+          echo "Checking for releases without tags..."
+          for release_tag in $(gh api repos/:owner/:repo/releases --jq '.[].tag_name' | head -10); do
+            if ! git tag -l | grep -q "^${release_tag}$"; then
+              echo "⚠️  Found release $release_tag without local tag"
+              # Get the commit SHA for this release
+              commit_sha=$(gh release view $release_tag --json targetCommitish --jq '.targetCommitish')
+              if [ -n "$commit_sha" ]; then
+                echo "Creating missing tag $release_tag at $commit_sha"
+                git tag $release_tag $commit_sha || true
+                git push origin $release_tag || echo "Tag $release_tag already exists remotely"
+              fi
+            fi
+          done
+          
+          # Find tags without corresponding releases (warning only)
+          echo "Checking for tags without releases..."
+          for tag in $(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -10); do
+            if ! gh release view $tag >/dev/null 2>&1; then
+              echo "⚠️  Found tag $tag without GitHub release (this may be normal)"
+            fi
+          done
+          
+          echo "✅ State reconciliation complete"
+
       - name: Release Please
         id: release
         uses: googleapis/release-please-action@v4
@@ -35,15 +67,38 @@ jobs:
           echo "tag=${{ steps.release.outputs.tag_name }}"
           echo "version=${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}"
 
-      - name: Tag major and minor floating refs
-        if: ${{ steps.release.outputs.release_created  == 'true' }}
+      - name: Create floating tags (safer approach)
+        if: ${{ steps.release.outputs.release_created == 'true' }}
         run: |
+          echo "🏷️  Creating floating tags for ${{ steps.release.outputs.tag_name }}"
+          
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          for t in v${{ steps.release.outputs.major }} v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}; do
-            git push origin :$t || true
-            git tag -fa $t -m "Floating tag $t -> ${{ steps.release.outputs.tag_name }}"
-            git push origin $t --force
+          
+          MAJOR="${{ steps.release.outputs.major }}"
+          MINOR="${{ steps.release.outputs.minor }}"
+          FULL_TAG="${{ steps.release.outputs.tag_name }}"
+          
+          # Create floating tags with better error handling
+          for floating_tag in "v${MAJOR}" "v${MAJOR}.${MINOR}"; do
+            echo "Processing floating tag: $floating_tag -> $FULL_TAG"
+            
+            # Delete remote tag if exists (safer than force push)
+            if git ls-remote --tags origin | grep -q "refs/tags/$floating_tag$"; then
+              echo "Deleting existing remote tag: $floating_tag"
+              git push origin ":$floating_tag" || echo "Failed to delete $floating_tag, continuing..."
+            fi
+            
+            # Create/update local tag
+            git tag -fa "$floating_tag" -m "Floating tag $floating_tag -> $FULL_TAG"
+            
+            # Push new tag
+            if git push origin "$floating_tag"; then
+              echo "✅ Successfully created floating tag: $floating_tag"
+            else
+              echo "❌ Failed to create floating tag: $floating_tag"
+              # Don't fail the entire workflow for floating tag issues
+            fi
           done
 
       - name: Upload artifact (if present)
