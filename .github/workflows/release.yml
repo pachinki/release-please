@@ -60,28 +60,8 @@ jobs:
           
           echo "✅ State reconciliation complete"
 
-      - name: Check if release already exists
-        id: check_release
-        run: |
-          # Get the current version from manifest
-          current_version=$(jq -r '."."' .release-please-manifest.json)
-          predicted_tag="v${current_version}"
-          
-          echo "Current manifest version: $current_version"
-          echo "Checking if release already exists for: $predicted_tag"
-          
-          # Check if both tag and release already exist
-          if git tag -l | grep -q "^${predicted_tag}$" && gh release view "$predicted_tag" >/dev/null 2>&1; then
-            echo "✅ Release $predicted_tag already exists completely"
-            echo "skip_release=true" >> $GITHUB_OUTPUT
-          else
-            echo "🚀 Release $predicted_tag needs to be created"
-            echo "skip_release=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Release Please
         id: release
-        if: steps.check_release.outputs.skip_release == 'false'
         uses: googleapis/release-please-action@v4
         with:
           release-type: simple
