@@ -1,5 +1,34 @@
 # Changelog
 
+## [4.0.0](https://github.com/pachinki/release-please/compare/v3.2.1...v4.0.0) (2025-09-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* new feature 2 release it fix
+* new feature 2 release it fix
+* new feature 2 release it
+* new feature 2 fix
+* new feature 2
+
+### Features
+
+* add explicit last-release-sha to fix RC tag interference ([b5df277](https://github.com/pachinki/release-please/commit/b5df2773a301ee8be40f7f3a78cb001311dfa683))
+* new feature 2 ([3b69764](https://github.com/pachinki/release-please/commit/3b6976496dcbcb8cbe1db24c3a2bb587d5b2d54f))
+* new feature 2 ([00c6554](https://github.com/pachinki/release-please/commit/00c6554204c1f3928cb2a11e80c76459a0d9fa52))
+* new feature 2 fix ([3e4cad3](https://github.com/pachinki/release-please/commit/3e4cad3e1adc6d0421d2816fcac2bcff4ba2481f))
+* new feature 2 release it ([f454f63](https://github.com/pachinki/release-please/commit/f454f635ca7fb3f796bc45c58c61e07872e477c5))
+* new feature 2 release it fix ([c933ebd](https://github.com/pachinki/release-please/commit/c933ebdeb55788d53f3a15258df596825ab01b10))
+* new feature 2 release it fix ([28f46f9](https://github.com/pachinki/release-please/commit/28f46f9357a0b05aea3899176961f7a54020cd60))
+
+
+### Bug Fixes
+
+* add last-release-sha to force correct version calculation ([1aa4d1a](https://github.com/pachinki/release-please/commit/1aa4d1a6ec8318ef91700c03aec44e40a6870d08))
+* add prerelease config to prevent RC tags from interfering with releases ([49bef98](https://github.com/pachinki/release-please/commit/49bef98cdd21d3344de7516370cd9649a1b67604))
+* remove conflicting release-as setting from config ([5be46a3](https://github.com/pachinki/release-please/commit/5be46a333b0c321eeeaaee8910e258ab91691db6))
+* trigger release workflow after removing RC tags ([c22df10](https://github.com/pachinki/release-please/commit/c22df109b58578ac2c9add41df2019ab18c90a70))
+
 ## [3.2.1](https://github.com/pachinki/release-please/compare/v3.2.0...v3.2.1) (2025-09-22)
 
 
