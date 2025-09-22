@@ -44,11 +44,17 @@ jobs:
             fi
           done
           
-          # Find tags without corresponding releases (warning only)
-          echo "Checking for tags without releases..."
+          # Find tags without corresponding releases and clean them up
+          echo "Checking for orphaned tags without releases..."
           for tag in $(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -10); do
             if ! gh release view $tag >/dev/null 2>&1; then
-              echo "⚠️  Found tag $tag without GitHub release (this may be normal)"
+              echo "🧹 Found orphaned tag $tag without GitHub release - cleaning up"
+              
+              # Delete the orphaned tag locally and remotely
+              git tag -d $tag || true
+              git push origin ":$tag" || true
+              
+              echo "✅ Cleaned up orphaned tag: $tag"
             fi
           done
           
@@ -71,6 +77,12 @@ jobs:
         if: ${{ steps.release.outputs.release_created == 'true' }}
         run: |
           echo "🏷️  Creating floating tags for ${{ steps.release.outputs.tag_name }}"
+          
+          # Verify the release actually exists before creating floating tags
+          if ! gh release view "${{ steps.release.outputs.tag_name }}" >/dev/null 2>&1; then
+            echo "❌ Release ${{ steps.release.outputs.tag_name }} not found! Skipping floating tags."
+            exit 1
+          fi
           
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
