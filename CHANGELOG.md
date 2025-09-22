@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.0](https://github.com/pachinki/release-please/compare/v4.0.0...v4.1.0) (2025-09-22)
+
+
+### Features
+
+* add prerelease-type config and RC cleanup script ([a01c554](https://github.com/pachinki/release-please/commit/a01c55444e0cd47cc32c6e28b44a154eb8946a71))
+
 ## [4.0.0](https://github.com/pachinki/release-please/compare/v3.2.1...v4.0.0) (2025-09-22)
 
 
