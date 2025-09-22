@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.1](https://github.com/pachinki/release-please/compare/v4.2.0...v4.2.1) (2025-09-22)
+
+
+### Bug Fixes
+
+* resolve pipeline duplicate tag errors ([9082d08](https://github.com/pachinki/release-please/commit/9082d08b45efdddb7f61b30d8f29b57371a6c992))
+
 ## [4.2.0](https://github.com/pachinki/release-please/compare/v4.1.1...v4.2.0) (2025-09-22)
 
 
