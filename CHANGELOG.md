@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.0.0-rc.2](https://github.com/pachinki/release-please/compare/v4.0.0-rc.2...v5.0.0-rc.2) (2025-09-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* new feature 2 release it fix
+* new feature 2 release it
+
+### Features
+
+* new feature 2 ([3b69764](https://github.com/pachinki/release-please/commit/3b6976496dcbcb8cbe1db24c3a2bb587d5b2d54f))
+* new feature 2 release it ([f454f63](https://github.com/pachinki/release-please/commit/f454f635ca7fb3f796bc45c58c61e07872e477c5))
+* new feature 2 release it fix ([28f46f9](https://github.com/pachinki/release-please/commit/28f46f9357a0b05aea3899176961f7a54020cd60))
+
+
+### Bug Fixes
+
+* add last-release-sha to force correct version calculation ([1aa4d1a](https://github.com/pachinki/release-please/commit/1aa4d1a6ec8318ef91700c03aec44e40a6870d08))
+* remove conflicting release-as setting from config ([5be46a3](https://github.com/pachinki/release-please/commit/5be46a333b0c321eeeaaee8910e258ab91691db6))
+
 ## [3.2.1](https://github.com/pachinki/release-please/compare/v3.2.0...v3.2.1) (2025-09-22)
 
 
