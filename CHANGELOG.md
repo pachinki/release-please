@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.6.1](https://github.com/pachinki/release-please/compare/v4.6.0...v4.6.1) (2025-09-22)
+
+
+### Bug Fixes
+
+* fetch tags before validation in release workflow ([1322f30](https://github.com/pachinki/release-please/commit/1322f304ab170ef0f004aa6bd385f4bf5d80f3ad))
+
 ## [4.6.0](https://github.com/pachinki/release-please/compare/v4.5.0...v4.6.0) (2025-09-22)
 
 
