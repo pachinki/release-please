@@ -1,5 +1,23 @@
 # Changelog
 
+## [4.3.0](https://github.com/pachinki/release-please/compare/v4.2.1...v4.3.0) (2025-09-22)
+
+
+### Features
+
+* add new feature to test improved dry-run predictions ([51ae8c2](https://github.com/pachinki/release-please/commit/51ae8c29eaa5195ab4e4ddc67574d51aacd32349))
+* add new feature to test improved dry-run predictions ([53c72cf](https://github.com/pachinki/release-please/commit/53c72cf4cf2438c7cdd7245ba049357ed73593f1))
+* new featur fix ([7ab9834](https://github.com/pachinki/release-please/commit/7ab9834f3cb3cce5681dbff866b8869a374118f1))
+* new featur initial ([cae14d3](https://github.com/pachinki/release-please/commit/cae14d300d9f3da0b709be92dc9696b5922028ea))
+
+
+### Bug Fixes
+
+* remove path restrictions from dry-run workflow ([bcb1061](https://github.com/pachinki/release-please/commit/bcb106159e66538278de8ff855c176afcaa260d6))
+* remove path restrictions from dry-run workflow ([a8c4bde](https://github.com/pachinki/release-please/commit/a8c4bde3dfa5dbbafbbc596530c4af62e3baebad))
+* simulate post-merge state in dry-run for accurate predictions ([8ee35b5](https://github.com/pachinki/release-please/commit/8ee35b57bd958682e4b0c3036344fa8c916349e5))
+* simulate post-merge state in dry-run for accurate predictions ([16a4729](https://github.com/pachinki/release-please/commit/16a47292d119777beca86d3d7e5706f1d72d23d9))
+
 ## [4.2.1](https://github.com/pachinki/release-please/compare/v4.2.0...v4.2.1) (2025-09-22)
 
 
