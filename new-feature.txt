@@ -1,3 +1,0 @@
-This is a new feature that should trigger a minor version bump.
-
-The improved dry-run workflow should now correctly predict v4.3.0 instead of v4.2.1.
