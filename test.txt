@@ -1,11 +1,2 @@
-test feature 1 - initial commit starting at v1.0.0
-test feature 2 - bump up minor version
-test feature 3 - bump up fix version
-test feature 4 - bump up major version
-test feature 5 - bump up major 2 feature
-test feature 6 - bump up major 2 feature again
-test feature 7 - bump up 2.2.0 to 2.2.1
-test feature 8 - bump up 2.2.1 to 2.2.2
-test feature 9 - bump up 2.2.2 to 2.2.3
-test feature 10 - bump up 2.2.3 to 2.2.4
-test feature 11 - 1st release PR
+feature 1 - initial
+feature 1 - fix
