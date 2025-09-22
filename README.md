@@ -272,3 +272,4 @@ This ensures breaking changes receive proper review and communication before rel
 
 ---
 Use the dry run summary during review to answer: *Will this PR release, and to what version?*
+# RC tags removed
