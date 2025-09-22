@@ -79,6 +79,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          
+      - name: Simulate post-merge state for accurate version prediction
+        if: github.event_name == 'pull_request'
+        run: |
+          # Fetch the latest main branch
+          git fetch origin main
+          
+          # Switch to main and create a temporary merge
+          git checkout origin/main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Merge the PR branch to simulate post-merge state
+          git merge ${{ github.sha }} --no-edit --no-ff || {
+            echo "::warning::Merge conflict detected - prediction may be inaccurate"
+            git merge --abort
+            git checkout ${{ github.sha }}
+          }
       - name: Compute next version via composite action
         id: predict
         uses: ./.github/actions/release-dry-run
