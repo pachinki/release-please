@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.5.0](https://github.com/pachinki/release-please/compare/v4.4.1...v4.5.0) (2025-09-22)
+
+
+### Features
+
+* new feature ([be961a5](https://github.com/pachinki/release-please/commit/be961a522285bf1c980e730434feb424ac3c3c45))
+
+
+### Bug Fixes
+
+* new feature fix ([fe9cd9b](https://github.com/pachinki/release-please/commit/fe9cd9bd14dc4af4f988f77e52fb73b45a3aa4e5))
+
 ## [4.4.1](https://github.com/pachinki/release-please/compare/v4.4.0...v4.4.1) (2025-09-22)
 
 
