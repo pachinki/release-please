@@ -47,15 +47,15 @@ on:
       final_exit_code:
         description: "Exit code returned by release-please CLI (0 still expected even on parse fallback)"
         value: ${{ jobs.dry-run.outputs.final_exit_code }}
-  # Keep original ad‑hoc triggers for local PR experimentation (optional)
   pull_request:
-    paths:
-      - ".github/workflows/**"
-      - "release-please-config.json"
-      - "CHANGELOG.md"
-      - "**/*.sh"
-      - "**/*.md"
-      - "**/*.txt"
+    # Trigger on all file changes to properly predict version bumps
+    # Remove path restrictions so dry-run analyzes all conventional commits
+    # or be more specific as below:
+    # paths:
+    # - "**/*"
+    # paths-ignore:
+    # - "node_modules/**"
+    # - ".git/**"
     
   workflow_dispatch: {}
 
