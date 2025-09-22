@@ -72,6 +72,9 @@ jobs:
         run: |
           echo "✅ Release created: ${{ steps.release.outputs.tag_name }}"
           
+          # Fetch the latest tags from remote since release-please creates them remotely
+          git fetch --tags
+          
           # Verify both tag and release exist
           tag_name="${{ steps.release.outputs.tag_name }}"
           
