@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.7.0-rc.3](https://github.com/pachinki/release-please/compare/v4.6.0-rc.3...v4.7.0-rc.3) (2025-09-22)
+
+
+### Features
+
+* pre 2 initial ([28a468a](https://github.com/pachinki/release-please/commit/28a468a284fa33d9126fb33f89ed88bb2408355c))
+
 ## [4.5.0](https://github.com/pachinki/release-please/compare/v4.4.0...v4.5.0) (2025-09-21)
 
 
