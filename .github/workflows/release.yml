@@ -23,6 +23,8 @@ jobs:
           fetch-depth: 0
 
       - name: Reconcile release state
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🔍 Checking for state inconsistencies..."
           
@@ -31,11 +33,17 @@ jobs:
           
           # Find releases without corresponding tags
           echo "Checking for releases without tags..."
-          for release_tag in $(gh api repos/:owner/:repo/releases --jq '.[].tag_name' | head -10); do
+          for release_tag in $(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/releases" | \
+            python3 -c "import json,sys; data=json.load(sys.stdin); [print(r['tag_name']) for r in data[:10]]"); do
             if ! git tag -l | grep -q "^${release_tag}$"; then
               echo "⚠️  Found release $release_tag without local tag"
               # Get the commit SHA for this release
-              commit_sha=$(gh release view $release_tag --json targetCommitish --jq '.targetCommitish')
+              commit_sha=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/$release_tag" | \
+                python3 -c "import json,sys; data=json.load(sys.stdin); print(data.get('target_commitish', ''))")
               if [ -n "$commit_sha" ]; then
                 echo "Creating missing tag $release_tag at $commit_sha"
                 git tag $release_tag $commit_sha || true
@@ -47,7 +55,10 @@ jobs:
           # Find tags without corresponding releases and clean them up
           echo "Checking for orphaned tags without releases..."
           for tag in $(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -10); do
-            if ! gh release view $tag >/dev/null 2>&1; then
+            release_status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/$tag")
+            if [ "$release_status" != "200" ]; then
               echo "🧹 Found orphaned tag $tag without GitHub release - cleaning up"
               
               # Delete the orphaned tag locally and remotely
@@ -69,6 +80,8 @@ jobs:
 
       - name: Validate release creation
         if: steps.release.outputs.release_created == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "✅ Release created: ${{ steps.release.outputs.tag_name }}"
           
@@ -83,7 +96,10 @@ jobs:
             exit 1
           fi
           
-          if ! gh release view "$tag_name" >/dev/null 2>&1; then
+          release_status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/$tag_name")
+          if [ "$release_status" != "200" ]; then
             echo "❌ GitHub release $tag_name not found"
             exit 1
           fi
@@ -98,11 +114,16 @@ jobs:
 
       - name: Create floating tags (safer approach)
         if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🏷️  Creating floating tags for ${{ steps.release.outputs.tag_name }}"
           
           # Verify the release actually exists before creating floating tags
-          if ! gh release view "${{ steps.release.outputs.tag_name }}" >/dev/null 2>&1; then
+          release_status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/${{ steps.release.outputs.tag_name }}")
+          if [ "$release_status" != "200" ]; then
             echo "❌ Release ${{ steps.release.outputs.tag_name }} not found! Skipping floating tags."
             exit 1
           fi
@@ -138,9 +159,18 @@ jobs:
 
       - name: Upload artifact (if present)
         if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -f artifact/some-build-artifact.zip ]; then
-            gh release upload ${{ steps.release.outputs.tag_name }} artifact/some-build-artifact.zip
+            # Upload artifact using GitHub API instead of gh command
+            curl -s -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/zip" \
+              --data-binary @artifact/some-build-artifact.zip \
+              "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/${{ steps.release.outputs.tag_name }}/assets?name=some-build-artifact.zip"
+            echo "Artifact uploaded successfully"
           else
             echo "No artifact found; skipping upload"
           fi
