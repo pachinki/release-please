@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.6.0](https://github.com/pachinki/release-please/compare/v4.5.0...v4.6.0) (2025-09-22)
+
+
+### Features
+
+* new feature ([c8ac224](https://github.com/pachinki/release-please/commit/c8ac22421e2943b9a1a4f1c45115bea2018bc0c4))
+
+
+### Bug Fixes
+
+* add pre-check to prevent duplicate release creation ([17a864a](https://github.com/pachinki/release-please/commit/17a864a94ce15a8b387a3077d7c7ea4ed9bbd0b7))
+* fix new feature ([2b5f9e0](https://github.com/pachinki/release-please/commit/2b5f9e09e34a5daf49e691cff71974996d2a0a9a))
+* remove overly aggressive pre-check that was blocking new releases ([92f6b62](https://github.com/pachinki/release-please/commit/92f6b62dbc6e56615afffab8ca724d8351e17093))
+
 ## [4.5.0](https://github.com/pachinki/release-please/compare/v4.4.1...v4.5.0) (2025-09-22)
 
 
