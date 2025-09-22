@@ -22,44 +22,26 @@ inputs:
     description: "Subdirectory root scanned for commits"
     required: false
     default: "."
-  artifact-name:
-    description: "Base name for uploaded log artifact (will hold dry run log)"
-    required: false
-    default: "release-please-dry-run-log"
-  unique-suffix:
-    description: "If 'true', append path + job + run_attempt to artifact name to avoid 409 conflicts when action runs multiple times in a workflow"
-    required: false
-    default: "true"
-  pr-comment:
-    description: "If 'true', post (or update) a PR comment with predicted version details when running on pull_request events"
-    required: false
-    default: "true"
-  pr-comment-marker:
-    description: "Hidden HTML marker used to find & update the prior comment instead of creating duplicates"
-    required: false
-    default: "release-please-dry-run-marker"
-  show-raw-exit-code:
-    description: "If 'true', include Raw Exit Code row in PR comment table"
-    required: false
-    default: "false"
-  enforce-major-approval:
-    description: "If 'true', add labels and require approval for major version bumps"
-    required: false
-    default: "true"
 
 outputs:
-  current_tag:
-    description: "Current latest tag (vX.Y.Z)"
-    value: ${{ steps.baseline.outputs.current_tag }}
-  next_tag:
-    description: "Next tag after merge (vX.Y.Z)"
-    value: ${{ steps.forward_predict.outputs.next_tag }}
-  bump_type:
-    description: "Semantic bump type (none|patch|minor|major)"
-    value: ${{ steps.forward_predict.outputs.bump_type }}
-  major_bump_detected:
-    description: "True if major bump was detected and protection was applied"
-    value: ${{ github.event_name == 'pull_request' && steps.forward_predict.outputs.bump_type == 'major' && inputs['enforce-major-approval'] == 'true' }}
+  predicted_tag:
+    description: "Predicted next tag (vX.Y.Z)"
+    value: ${{ steps.predict.outputs.predicted_tag }}
+  predicted_version:
+    description: "Predicted next semantic version (X.Y.Z)"
+    value: ${{ steps.predict.outputs.predicted_version }}
+  major:
+    description: "Predicted next major version component"
+    value: ${{ steps.predict.outputs.major }}
+  minor:
+    description: "Predicted next minor version component"
+    value: ${{ steps.predict.outputs.minor }}
+  patch:
+    description: "Predicted next patch version component"
+    value: ${{ steps.predict.outputs.patch }}
+  final_exit_code:
+    description: "Exit code returned by release-please CLI"
+    value: ${{ steps.predict.outputs.final_exit_code }}
 
 runs:
   using: "composite"
@@ -73,85 +55,59 @@ runs:
       shell: bash
       run: npm install -g release-please
 
-    - name: Ensure full git history (best-effort)
+    - name: Fetch git history
       shell: bash
       run: |
-        set -euo pipefail
-        # Attempt to unshallow so describe/commit scan works; ignore if already full.
         git fetch --prune --tags --unshallow 2>/dev/null || true
-        # Fallback shallow fetch of tags if unshallow not possible
         git fetch --prune --tags --depth=200 2>/dev/null || true
-        # Make sure we have the latest default branch ref (important for PR context)
         git fetch origin "${{ inputs['target-branch'] }}" --depth=200 2>/dev/null || true
 
-    - name: Get current tag baseline
-      id: baseline
+    - name: Run release-please dry-run
+      id: predict
       shell: bash
       run: |
         set -euo pipefail
-        DEFAULT_BRANCH='${{ inputs['target-branch'] }}'
-        git fetch origin "$DEFAULT_BRANCH" --tags --force >/dev/null 2>&1 || true
-        # Find highest semver tag on default branch
-        CANDIDATES=$(git tag --merged "origin/$DEFAULT_BRANCH" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)
-        if [ -n "$CANDIDATES" ]; then
-          CURRENT_TAG=$(echo "$CANDIDATES" | awk -F'[v.]' '{printf "%s %d %d %d\n",$0,$2,$3,$4}' | sort -k2,2n -k3,3n -k4,4n | tail -n1 | cut -d' ' -f1)
+        
+        echo "Running release-please dry-run prediction..."
+        
+        # Run release-please in dry-run mode
+        OUTPUT=$(release-please release-pr \
+          --dry-run \
+          --repo-url="${{ github.server_url }}/${{ github.repository }}" \
+          --release-type="${{ inputs['release-type'] }}" \
+          --path="${{ inputs['path'] }}" \
+          --package-name="${{ inputs['package-name'] }}" \
+          --target-branch="${{ inputs['target-branch'] }}" 2>&1) || EXIT_CODE=$?
+        
+        EXIT_CODE=${EXIT_CODE:-0}
+        echo "final_exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+        
+        # Extract version info from output
+        if echo "$OUTPUT" | grep -q "would tag"; then
+          TAG=$(echo "$OUTPUT" | grep "would tag" | sed 's/.*would tag //' | head -1)
+          VERSION=${TAG#v}
+          
+          # Parse semantic version components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          
+          echo "predicted_tag=$TAG" >> $GITHUB_OUTPUT
+          echo "predicted_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+          
+          echo "✅ Predicted next version: $TAG"
         else
-          CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')
-        fi
-        echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
-        echo "Current tag: $CURRENT_TAG" | tee -a baseline.log
-
-    - name: Predict next tag after merge
-      id: forward_predict
-      if: github.event_name == 'pull_request'
-      shell: bash
-      run: |
-        set -euo pipefail
-        TARGET='${{ inputs['target-branch'] }}'
-        CURRENT_TAG='${{ steps.baseline.outputs.current_tag }}'
-        CURRENT_VER=${CURRENT_TAG#v}
-        
-        # Normalize to three-part semver
-        if [[ ! "$CURRENT_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          IFS=. read -r LV_M LV_m LV_p <<< "$CURRENT_VER"
-          LV_M=${LV_M:-0}; LV_m=${LV_m:-0}; LV_p=${LV_p:-0}
-          CURRENT_VER="$LV_M.$LV_m.$LV_p"
-        fi
-        IFS=. read -r MAJ MIN PAT <<< "$CURRENT_VER"
-        
-        # Check PR-only commits for bump type
-        PR_COMMITS=$(git log --pretty=format:'%s%n%b' origin/$TARGET..HEAD || true)
-        if [ -z "$PR_COMMITS" ]; then
-          BUMP=none
-        elif echo "$PR_COMMITS" | grep -Eiq 'BREAKING CHANGE|!:'; then
-          BUMP=major
-        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*feat(\(|:)' ; then
-          BUMP=minor
-        elif echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*(fix|perf|refactor|chore|ci|build)(\(|:)|bugfix|hotfix' ; then
-          BUMP=patch
-        else
-          # Explicitly check for non-bumping commit types
-          if echo "$PR_COMMITS" | grep -Eiq '^[[:space:]]*(docs|style|test)(\(|:)'; then
-            BUMP=none
-          else
-            BUMP=none
-          fi
+          echo "No version change predicted"
+          echo "predicted_tag=" >> $GITHUB_OUTPUT
+          echo "predicted_version=" >> $GITHUB_OUTPUT
+          echo "major=" >> $GITHUB_OUTPUT
+          echo "minor=" >> $GITHUB_OUTPUT
+          echo "patch=" >> $GITHUB_OUTPUT
         fi
         
-        # Calculate next version
-        case $BUMP in
-          major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
-          minor) MIN=$((MIN+1)); PAT=0 ;;
-          patch) PAT=$((PAT+1)) ;;
-          none) : ;;
-        esac
-        
-        NEXT_VER="$MAJ.$MIN.$PAT"
-        NEXT_TAG="v$NEXT_VER"
-        
-        echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
-        echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
-        echo "Next tag after merge: $NEXT_TAG (bump: $BUMP)" | tee -a baseline.log
+        echo "Raw output:"
+        echo "$OUTPUT"
 
     - name: Compute artifact name
       id: artifact_name

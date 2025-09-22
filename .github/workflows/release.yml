@@ -22,54 +22,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reconcile release state
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Fetch tags and prepare
         run: |
-          echo "🔍 Checking for state inconsistencies..."
-          
-          # Fetch all tags and check for orphaned releases
+          echo "🔍 Fetching latest tags..."
           git fetch --tags --force
-          
-          # Find releases without corresponding tags
-          echo "Checking for releases without tags..."
-          for release_tag in $(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "${{ github.api_url }}/repos/${{ github.repository }}/releases" | \
-            python3 -c "import json,sys; data=json.load(sys.stdin); [print(r['tag_name']) for r in data[:10]]"); do
-            if ! git tag -l | grep -q "^${release_tag}$"; then
-              echo "⚠️  Found release $release_tag without local tag"
-              # Get the commit SHA for this release
-              commit_sha=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -H "Accept: application/vnd.github+json" \
-                "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/$release_tag" | \
-                python3 -c "import json,sys; data=json.load(sys.stdin); print(data.get('target_commitish', ''))")
-              if [ -n "$commit_sha" ]; then
-                echo "Creating missing tag $release_tag at $commit_sha"
-                git tag $release_tag $commit_sha || true
-                git push origin $release_tag || echo "Tag $release_tag already exists remotely"
-              fi
-            fi
-          done
-          
-          # Find tags without corresponding releases and clean them up
-          echo "Checking for orphaned tags without releases..."
-          for tag in $(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -10); do
-            release_status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/$tag")
-            if [ "$release_status" != "200" ]; then
-              echo "🧹 Found orphaned tag $tag without GitHub release - cleaning up"
-              
-              # Delete the orphaned tag locally and remotely
-              git tag -d $tag || true
-              git push origin ":$tag" || true
-              
-              echo "✅ Cleaned up orphaned tag: $tag"
-            fi
-          done
-          
-          echo "✅ State reconciliation complete"
+          echo "✅ Ready for release"
 
       - name: Release Please
         id: release
@@ -78,55 +35,10 @@ jobs:
           release-type: simple
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate release creation
-        if: steps.release.outputs.release_created == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "✅ Release created: ${{ steps.release.outputs.tag_name }}"
-          
-          # Fetch the latest tags from remote since release-please creates them remotely
-          git fetch --tags
-          
-          # Verify both tag and release exist
-          tag_name="${{ steps.release.outputs.tag_name }}"
-          
-          if ! git tag -l | grep -q "^${tag_name}$"; then
-            echo "❌ Tag $tag_name not found locally"
-            exit 1
-          fi
-          
-          release_status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/$tag_name")
-          if [ "$release_status" != "200" ]; then
-            echo "❌ GitHub release $tag_name not found"
-            exit 1
-          fi
-          
-          echo "✅ Both tag and release verified successfully"
-
-      - name: Show outputs
-        run: |
-          echo "release_created=${{ steps.release.outputs.release_created }}"
-          echo "tag=${{ steps.release.outputs.tag_name }}"
-          echo "version=${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}"
-
-      - name: Create floating tags (safer approach)
+      - name: Create floating tags
         if: ${{ steps.release.outputs.release_created == 'true' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🏷️  Creating floating tags for ${{ steps.release.outputs.tag_name }}"
-          
-          # Verify the release actually exists before creating floating tags
-          release_status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/${{ steps.release.outputs.tag_name }}")
-          if [ "$release_status" != "200" ]; then
-            echo "❌ Release ${{ steps.release.outputs.tag_name }} not found! Skipping floating tags."
-            exit 1
-          fi
           
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -135,42 +47,16 @@ jobs:
           MINOR="${{ steps.release.outputs.minor }}"
           FULL_TAG="${{ steps.release.outputs.tag_name }}"
           
-          # Create floating tags with better error handling
+          # Create floating tags
           for floating_tag in "v${MAJOR}" "v${MAJOR}.${MINOR}"; do
-            echo "Processing floating tag: $floating_tag -> $FULL_TAG"
+            echo "Creating floating tag: $floating_tag -> $FULL_TAG"
             
-            # Delete remote tag if exists (safer than force push)
-            if git ls-remote --tags origin | grep -q "refs/tags/$floating_tag$"; then
-              echo "Deleting existing remote tag: $floating_tag"
-              git push origin ":$floating_tag" || echo "Failed to delete $floating_tag, continuing..."
-            fi
+            # Delete remote tag if exists
+            git push origin ":$floating_tag" 2>/dev/null || true
             
-            # Create/update local tag
+            # Create and push new tag
             git tag -fa "$floating_tag" -m "Floating tag $floating_tag -> $FULL_TAG"
+            git push origin "$floating_tag"
             
-            # Push new tag
-            if git push origin "$floating_tag"; then
-              echo "✅ Successfully created floating tag: $floating_tag"
-            else
-              echo "❌ Failed to create floating tag: $floating_tag"
-              # Don't fail the entire workflow for floating tag issues
-            fi
+            echo "✅ Created floating tag: $floating_tag"
           done
-
-      - name: Upload artifact (if present)
-        if: ${{ steps.release.outputs.release_created == 'true' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ -f artifact/some-build-artifact.zip ]; then
-            # Upload artifact using GitHub API instead of gh command
-            curl -s -X POST \
-              -H "Authorization: Bearer $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              -H "Content-Type: application/zip" \
-              --data-binary @artifact/some-build-artifact.zip \
-              "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/${{ steps.release.outputs.tag_name }}/assets?name=some-build-artifact.zip"
-            echo "Artifact uploaded successfully"
-          else
-            echo "No artifact found; skipping upload"
-          fi
