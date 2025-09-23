@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.0.0](https://github.com/pachinki/release-please/compare/v4.9.0...v5.0.0) (2025-09-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* refactor
+
+### Features
+
+* refactor ([138f681](https://github.com/pachinki/release-please/commit/138f681d2e1a2c5158fd858b28138e376ad360bf))
+
 ## [4.9.0](https://github.com/pachinki/release-please/compare/v4.8.1...v4.9.0) (2025-09-23)
 
 
