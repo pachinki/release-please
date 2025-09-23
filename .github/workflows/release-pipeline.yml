@@ -115,8 +115,6 @@ jobs:
         uses: ./.github/actions/release
         with:
           release-type: simple
-          create-floating-tags: "true"
-          reconcile-state: "true"
 
       - name: Post-release actions
         if: steps.release.outputs.release_created == 'true'
@@ -127,18 +125,3 @@ jobs:
           
           # Add any post-release automation here
           # e.g., trigger deployments, notifications, etc.
-
-      - name: Summary
-        run: |
-          {
-            if [ "${{ steps.release.outputs.release_created }}" == "true" ]; then
-              echo '### 🎉 Production Release Summary';
-              echo "* **Version**: ${{ steps.release.outputs.version }}";
-              echo "* **Tag**: ${{ steps.release.outputs.tag_name }}";
-              echo "* **SHA**: ${{ steps.release.outputs.sha }}";
-              echo "* **Floating Tags**: Created vX and vX.Y tags";
-            else
-              echo '### ℹ️ No Release Created';
-              echo "No conventional commits found that warrant a release.";
-            fi
-          } >> $GITHUB_STEP_SUMMARY
