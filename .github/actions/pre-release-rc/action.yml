@@ -97,6 +97,7 @@ runs:
       run: |
         set -euo pipefail
         echo "Predicting version against branch=$DEFAULT_BRANCH type=$RELEASE_TYPE package=$PACKAGE_NAME path=$RELEASE_PATH"
+        echo "(Pre-release tags left intact; prediction only considers production semver tags internally)"
         set +e
         release-please release-pr \
           --repo-url ${{ github.repository }} \
@@ -139,8 +140,9 @@ runs:
           BASE="${PRED_TAG#v}"; SOURCE="predicted"
         else
           echo "Falling back to commit scan heuristic" >&2
-          # Find the latest non-RC tag (exclude RC tags from base version calculation)
-          LAST_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -v -- '-rc\.' | head -n1 || echo 'v0.0.0')
+          # Strictly select latest production (non pre-release) tag only
+          LAST_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+          [ -n "$LAST_TAG" ] || LAST_TAG='v0.0.0'
           echo "DEBUG: LAST_TAG=$LAST_TAG"
           BASE_VER=${LAST_TAG#v}
           echo "DEBUG: BASE_VER=$BASE_VER"
