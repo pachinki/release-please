@@ -1,4 +1,10 @@
-# Changelog
+# v4.8.2
+
+**Release Date:** 2025-09-23
+
+## 🐛 Bug Fixes
+
+- Fixed miscellaneous issues and cleaned up codebase.
 
 ## [4.8.1](https://github.com/pachinki/release-please/compare/v4.8.0...v4.8.1) (2025-09-22)
 
@@ -136,7 +142,7 @@
 ## [4.0.0](https://github.com/pachinki/release-please/compare/v3.2.1...v4.0.0) (2025-09-22)
 
 
-### ⚠ BREAKING CHANGES
+### â  BREAKING CHANGES
 
 * new feature 2 release it fix
 * new feature 2 release it fix
@@ -195,7 +201,7 @@
 ## [3.0.0](https://github.com/pachinki/release-please/compare/v2.3.0...v3.0.0) (2025-09-20)
 
 
-### ⚠ BREAKING CHANGES
+### â  BREAKING CHANGES
 
 * 2nd pr ([#30](https://github.com/pachinki/release-please/issues/30))
 
@@ -287,7 +293,7 @@
 ## [2.0.0](https://github.com/pachinki/release-please/compare/v1.1.1...v2.0.0) (2025-09-20)
 
 
-### ⚠ BREAKING CHANGES
+### â  BREAKING CHANGES
 
 * broaden the scope of dry-run
 * test feature 4
