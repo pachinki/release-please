@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout (full history for tagging)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create Release
+        id: release
+        uses: ./.github/actions/release
+        with:
+          release-type: simple
+          create-floating-tags: "true"
+          reconcile-state: "true"
+
+      - name: Show outputs
+        run: |
+          echo "release_created=${{ steps.release.outputs.release_created }}"
+          echo "tag=${{ steps.release.outputs.tag_name }}"
+          echo "version=${{ steps.release.outputs.version }}"

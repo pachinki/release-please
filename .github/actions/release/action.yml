@@ -1,0 +1,283 @@
+name: "Release with State Reconciliation"
+description: "Complete release management with state reconciliation, floating tags, and artifact uploads using release-please."
+author: "cai-platform"
+branding:
+  icon: "package"
+  color: "green"
+
+# Composite action that provides enterprise-grade release management:
+# 1. Reconciles release state (fixes orphaned tags/releases)
+# 2. Creates releases using release-please
+# 3. Validates release creation
+# 4. Creates floating tags (vX, vX.Y)
+# 5. Optionally uploads artifacts
+#
+# Usage example:
+# jobs:
+#   release:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: write
+#       pull-requests: write
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
+#       - id: release
+#         uses: ./.github/actions/release
+#         with:
+#           release-type: simple
+#           artifact-path: "dist/my-app.zip"
+#       - run: echo "Released ${{ steps.release.outputs.tag_name }}"
+
+inputs:
+  release-type:
+    description: "release-please release type (simple, node, python, manifest, etc.)"
+    required: false
+    default: "simple"
+  token:
+    description: "GitHub token for API access"
+    required: false
+    default: ${{ github.token }}
+  package-name:
+    description: "Package/manifest key for multi-package repos"
+    required: false
+    default: ""
+  path:
+    description: "Path to package for release (for monorepos)"
+    required: false
+    default: "."
+  artifact-path:
+    description: "Path to artifact file to upload with release"
+    required: false
+    default: ""
+  artifact-name:
+    description: "Name for uploaded artifact (defaults to filename)"
+    required: false
+    default: ""
+  create-floating-tags:
+    description: "Create floating tags (vX, vX.Y) pointing to latest release"
+    required: false
+    default: "true"
+  reconcile-state:
+    description: "Fix orphaned tags/releases before creating new release"
+    required: false
+    default: "true"
+  config-file:
+    description: "Path to release-please config file"
+    required: false
+    default: ""
+  manifest-file:
+    description: "Path to release-please manifest file"
+    required: false
+    default: ""
+
+outputs:
+  release_created:
+    description: "Whether a release was created (true/false)"
+    value: ${{ steps.release.outputs.release_created }}
+  tag_name:
+    description: "Name of the created tag (vX.Y.Z)"
+    value: ${{ steps.release.outputs.tag_name }}
+  version:
+    description: "Version string (X.Y.Z)"
+    value: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
+  major:
+    description: "Major version component"
+    value: ${{ steps.release.outputs.major }}
+  minor:
+    description: "Minor version component"
+    value: ${{ steps.release.outputs.minor }}
+  patch:
+    description: "Patch version component"
+    value: ${{ steps.release.outputs.patch }}
+  sha:
+    description: "SHA of the release commit"
+    value: ${{ steps.release.outputs.sha }}
+  upload_url:
+    description: "Upload URL for release assets"
+    value: ${{ steps.release.outputs.upload_url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Reconcile release state
+      if: ${{ inputs.reconcile-state == 'true' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        echo "🔍 Checking for state inconsistencies..."
+        
+        # Fetch all tags and check for orphaned releases
+        git fetch --tags --force
+        
+        # Find releases without corresponding tags
+        echo "Checking for releases without tags..."
+        for release_tag in $(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          "${{ github.api_url }}/repos/${{ github.repository }}/releases" | \
+          python3 -c "import json,sys; data=json.load(sys.stdin); [print(r['tag_name']) for r in data[:10]]"); do
+          if ! git tag -l | grep -q "^${release_tag}$"; then
+            echo "⚠️  Found release $release_tag without local tag"
+            # Get the commit SHA for this release
+            commit_sha=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/$release_tag" | \
+              python3 -c "import json,sys; data=json.load(sys.stdin); print(data.get('target_commitish', ''))")
+            if [ -n "$commit_sha" ]; then
+              echo "Creating missing tag $release_tag at $commit_sha"
+              git tag $release_tag $commit_sha || true
+              git push origin $release_tag || echo "Tag $release_tag already exists remotely"
+            fi
+          fi
+        done
+        
+        # Find tags without corresponding releases and clean them up
+        echo "Checking for orphaned tags without releases..."
+        for tag in $(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -10); do
+          release_status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/$tag")
+          if [ "$release_status" != "200" ]; then
+            echo "🧹 Found orphaned tag $tag without GitHub release - cleaning up"
+            
+            # Delete the orphaned tag locally and remotely
+            git tag -d $tag || true
+            git push origin ":$tag" || true
+            
+            echo "✅ Cleaned up orphaned tag: $tag"
+          fi
+        done
+        
+        echo "✅ State reconciliation complete"
+
+    - name: Release Please
+      id: release
+      uses: googleapis/release-please-action@v4
+      with:
+        release-type: ${{ inputs.release-type }}
+        token: ${{ inputs.token }}
+        package-name: ${{ inputs.package-name }}
+        path: ${{ inputs.path }}
+        config-file: ${{ inputs.config-file }}
+        manifest-file: ${{ inputs.manifest-file }}
+
+    - name: Validate release creation
+      if: steps.release.outputs.release_created == 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        echo "✅ Release created: ${{ steps.release.outputs.tag_name }}"
+        
+        # Fetch the latest tags from remote since release-please creates them remotely
+        git fetch --tags
+        
+        # Verify both tag and release exist
+        tag_name="${{ steps.release.outputs.tag_name }}"
+        
+        if ! git tag -l | grep -q "^${tag_name}$"; then
+          echo "❌ Tag $tag_name not found locally"
+          exit 1
+        fi
+        
+        release_status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/$tag_name")
+        if [ "$release_status" != "200" ]; then
+          echo "❌ GitHub release $tag_name not found"
+          exit 1
+        fi
+        
+        echo "✅ Both tag and release verified successfully"
+
+    - name: Create floating tags
+      if: ${{ steps.release.outputs.release_created == 'true' && inputs.create-floating-tags == 'true' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        echo "🏷️  Creating floating tags for ${{ steps.release.outputs.tag_name }}"
+        
+        # Verify the release actually exists before creating floating tags
+        release_status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          "${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/${{ steps.release.outputs.tag_name }}")
+        if [ "$release_status" != "200" ]; then
+          echo "❌ Release ${{ steps.release.outputs.tag_name }} not found! Skipping floating tags."
+          exit 1
+        fi
+        
+        git config user.name github-actions[bot]
+        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+        
+        MAJOR="${{ steps.release.outputs.major }}"
+        MINOR="${{ steps.release.outputs.minor }}"
+        FULL_TAG="${{ steps.release.outputs.tag_name }}"
+        
+        # Create floating tags with better error handling
+        for floating_tag in "v${MAJOR}" "v${MAJOR}.${MINOR}"; do
+          echo "Processing floating tag: $floating_tag -> $FULL_TAG"
+          
+          # Delete remote tag if exists (safer than force push)
+          if git ls-remote --tags origin | grep -q "refs/tags/$floating_tag$"; then
+            echo "Deleting existing remote tag: $floating_tag"
+            git push origin ":$floating_tag" || echo "Failed to delete $floating_tag, continuing..."
+          fi
+          
+          # Create/update local tag
+          git tag -fa "$floating_tag" -m "Floating tag $floating_tag -> $FULL_TAG"
+          
+          # Push new tag
+          if git push origin "$floating_tag"; then
+            echo "✅ Successfully created floating tag: $floating_tag"
+          else
+            echo "❌ Failed to create floating tag: $floating_tag"
+            # Don't fail the entire workflow for floating tag issues
+          fi
+        done
+
+    - name: Upload artifact
+      if: ${{ steps.release.outputs.release_created == 'true' && inputs.artifact-path != '' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        ARTIFACT_PATH="${{ inputs.artifact-path }}"
+        ARTIFACT_NAME="${{ inputs.artifact-name }}"
+        
+        if [ ! -f "$ARTIFACT_PATH" ]; then
+          echo "❌ Artifact not found at: $ARTIFACT_PATH"
+          exit 1
+        fi
+        
+        # Use filename if no custom name provided
+        if [ -z "$ARTIFACT_NAME" ]; then
+          ARTIFACT_NAME=$(basename "$ARTIFACT_PATH")
+        fi
+        
+        echo "📦 Uploading artifact: $ARTIFACT_NAME"
+        
+        # Upload artifact using GitHub API
+        curl -s -X POST \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          -H "Content-Type: application/octet-stream" \
+          --data-binary @"$ARTIFACT_PATH" \
+          "${{ github.api_url }}/repos/${{ github.repository }}/releases/${{ steps.release.outputs.id }}/assets?name=$ARTIFACT_NAME"
+        
+        echo "✅ Artifact uploaded successfully: $ARTIFACT_NAME"
+
+    - name: Summary
+      if: steps.release.outputs.release_created == 'true'
+      shell: bash
+      run: |
+        {
+          echo '### 🚀 Release Summary';
+          echo "* **Tag**: ${{ steps.release.outputs.tag_name }}";
+          echo "* **Version**: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}";
+          echo "* **SHA**: ${{ steps.release.outputs.sha }}";
+          echo "* **Floating Tags**: ${{ inputs.create-floating-tags == 'true' && 'Created' || 'Skipped' }}";
+          echo "* **Artifact**: ${{ inputs.artifact-path != '' && 'Uploaded' || 'None' }}";
+        } >> $GITHUB_STEP_SUMMARY
