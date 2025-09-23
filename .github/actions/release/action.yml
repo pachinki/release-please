@@ -156,12 +156,7 @@ runs:
       id: release
       uses: googleapis/release-please-action@v4
       with:
-        release-type: ${{ inputs.release-type }}
         token: ${{ inputs.token }}
-        package-name: ${{ inputs.package-name }}
-        path: ${{ inputs.path }}
-        config-file: ${{ inputs.config-file }}
-        manifest-file: ${{ inputs.manifest-file }}
 
     - name: Validate release creation
       if: steps.release.outputs.release_created == 'true'
