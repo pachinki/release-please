@@ -513,3 +513,111 @@ Instead of copying 150+ lines of complex bash scripts:
 ```
 
 This demonstrates **perfect separation of concerns** - complex logic lives in reusable actions, workflows orchestrate simple steps.
+
+---
+
+## 🤖 Optional Auto-Merge for Release PRs
+
+The `release` action now supports **optional automatic enabling of GitHub Auto-Merge** on the generated release PR. This is ideal when:
+
+- You already review & approve each feature PR
+- The release PR is purely mechanical (changelog + version bump)
+- You want to avoid the PR remaining open and accumulating extra features
+
+### Why Auto-Merge Instead of Manual Merge?
+
+| Concern | Manual Release PR | Auto-Merge Enabled |
+|---------|-------------------|--------------------|
+| Human step required | Yes | No |
+| Risk of feature creep while waiting | Higher | Much lower (PR merges quickly) |
+| Honors branch protection checks | Yes | Yes (auto-merge waits) |
+| Major bump control | Manual attention | Enforced via `major-approved` label |
+| Can temporarily pause | Remove auto-merge or add label | Add blocking label |
+
+### How It Works
+1. `googleapis/release-please-action@v4` creates/updates the release PR.
+2. If `auto-merge-release-pr: 'true'` and conditions pass, a follow-up step calls GitHub GraphQL
+   `enableAutoMerge` on the PR.
+3. GitHub auto-merges the PR once required checks pass.
+4. A subsequent run (push on merge) creates the actual release/tag.
+
+### Inputs Enabling Auto-Merge
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `auto-merge-release-pr` | `false` | Set to `true` to enable auto-merge logic |
+| `auto-merge-block-labels` | `hold,no-automerge` | Comma-separated labels that prevent enabling auto-merge |
+| `major-approval-label` | `major-approved` | Required label if bump is major |
+| `auto-merge-method` | `MERGE` | GitHub merge method: `MERGE` \| `SQUASH` \| `REBASE` |
+
+### Safeguards
+- **Blocking labels**: If any blocking label is present, auto-merge is skipped.
+- **Major bump protection**: Major version auto-merge only if the approval label is applied.
+- **Version parsing**: Version extracted from PR title `chore(main): release X.Y.Z`; if parsing fails, skip.
+- **Repo setting dependency**: Repository must have *Allow auto-merge* enabled (GitHub setting). If not, the step logs a warning and exits gracefully.
+- **Does NOT bypass required checks**: Auto-merge waits exactly the same as a human merge button would.
+
+### Minimal Usage Example
+
+```yaml
+- name: Production Release
+  uses: your-org/release-please/.github/actions/release@v1.0.0
+  with:
+    auto-merge-release-pr: 'true'
+```
+
+### Advanced Usage Example
+
+```yaml
+- name: Release (auto-merge with custom controls)
+  id: release
+  uses: your-org/release-please/.github/actions/release@v1.0.0
+  with:
+    auto-merge-release-pr: 'true'
+    auto-merge-block-labels: 'hold,no-automerge,security-freeze'
+    major-approval-label: 'major-approved'
+    auto-merge-method: 'MERGE'
+```
+
+### Operational Patterns
+
+| Scenario | Action |
+|----------|--------|
+| Pause releases temporarily | Add label `hold` to the release PR (or push an empty commit adding the label automatically via rule) |
+| Disallow auto-merge for one cycle | Set `auto-merge-release-pr: 'false'` in that run or add `no-automerge` label |
+| Approve major bump | Add label `major-approved` |
+| Change merge strategy | Set `auto-merge-method: 'SQUASH'` (not generally recommended for release-please) |
+
+### When NOT to Use Auto-Merge
+- You intentionally batch features into larger coordinated releases.
+- You need a stabilization / QA window before tagging.
+- Regulatory/compliance requires human sign-off on the aggregated changelog.
+
+### Migration Strategy
+You can trial auto-merge safely:
+1. Enable repository auto-merge setting.
+2. Add the inputs with `auto-merge-release-pr: 'true'`.
+3. Push a `feat:` commit → observe release PR gets auto-merge enabled.
+4. Remove feature with a blocking label to validate override.
+
+### Troubleshooting
+| Symptom | Cause | Resolution |
+|---------|-------|------------|
+| Step logs: Failed to enable auto-merge | Repo auto-merge disabled | Enable in repo settings → General → Pull Requests |
+| Major bump not auto-merged | Missing approval label | Add `major-approved` (or your configured label) |
+| Auto-merge not attempted | Version could not be parsed | Ensure PR title matches release-please pattern |
+| PR stays open despite conditions | Required checks not green | Wait for checks or inspect failing status |
+
+### Frequently Asked Question
+**Q: Why not just merge the release PR inside the same run?**  
+A: Immediate merge risks bypassing required status checks if they report later; enabling GitHub auto-merge delegates timing to GitHub’s native, reliable mechanism.
+
+---
+
+## 🚀 Future Enhancements (Ideas)
+- Quiet window before enabling auto-merge (e.g. wait N minutes since last push)
+- ChatOps command (`/release-freeze` / `/release-unfreeze`)
+- Slack / Teams notification when auto-merge is enabled or blocked
+- Separate stabilization branch option (`release/X.Y`) for larger orgs
+
+If you need any of these, they can be layered in without changing existing action interfaces.

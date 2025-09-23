@@ -115,6 +115,7 @@ jobs:
         uses: ./.github/actions/release
         with:
           release-type: simple
+          auto-merge-release-pr: 'true'
 
       - name: Post-release actions
         if: steps.release.outputs.release_created == 'true'

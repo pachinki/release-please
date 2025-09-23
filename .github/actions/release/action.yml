@@ -71,6 +71,22 @@ inputs:
     description: "Path to release-please manifest file"
     required: false
     default: ""
+  auto-merge-release-pr:
+    description: "If 'true', enable GitHub auto-merge on the generated release PR"
+    required: false
+    default: "false"
+  auto-merge-block-labels:
+    description: "Comma-separated labels that block enabling auto-merge (e.g. hold,no-automerge)"
+    required: false
+    default: "hold,no-automerge"
+  major-approval-label:
+    description: "Label required to auto-merge when bump is major"
+    required: false
+    default: "major-approved"
+  auto-merge-method:
+    description: "Merge strategy to request (MERGE|SQUASH|REBASE). Default MERGE keeps release-please commit format."
+    required: false
+    default: "MERGE"
 
 outputs:
   release_created:
@@ -157,6 +173,81 @@ runs:
       uses: googleapis/release-please-action@v4
       with:
         token: ${{ inputs.token }}
+
+    - name: Enable auto-merge on release PR (conditional)
+      if: ${{ inputs.auto-merge-release-pr == 'true' && steps.release.outputs.release_created != 'true' && steps.release.outputs.pr != '' }}
+      uses: actions/github-script@v7
+      env:
+        BLOCK_LABELS: ${{ inputs.auto-merge-block-labels }}
+        MAJOR_LABEL: ${{ inputs.major-approval-label }}
+        MERGE_METHOD: ${{ inputs.auto-merge-method }}
+        PR_NUMBER: ${{ steps.release.outputs.pr }}
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const prNumber = parseInt(process.env.PR_NUMBER, 10);
+          if (!prNumber) { core.info('No PR number available; skipping auto-merge setup.'); return; }
+
+          // Fetch PR
+          const { data: pr } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: prNumber
+          });
+
+            // Quick branch check (defensive)
+          if (!pr.head || !pr.head.ref.startsWith('release-please--branches--')) {
+            core.info('Not a release-please branch, skipping.');
+            return;
+          }
+
+          const labelNames = pr.labels.map(l => l.name);
+          const blockLabels = (process.env.BLOCK_LABELS || '').split(',').map(s=>s.trim()).filter(Boolean);
+          if (blockLabels.some(l => labelNames.includes(l))) {
+            core.info(`Blocking label present (${blockLabels.join(', ')}); not enabling auto-merge.`);
+            return;
+          }
+
+          // Parse version from title: chore(main): release X.Y.Z
+          const match = pr.title.match(/release\s+(\d+)\.(\d+)\.(\d+)/i);
+            if (!match) {
+            core.info('Could not parse version from PR title; skipping auto-merge.');
+            return;
+          }
+          const [ , newMaj, newMin, newPatch ] = match.map(Number);
+
+          // Get latest production tag
+          const tags = await github.paginate(github.rest.repos.listTags, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            per_page: 100
+          });
+          const prod = tags
+            .map(t => t.name)
+            .filter(n => /^v\d+\.\d+\.\d+$/.test(n))
+            .map(n => { const m = n.match(/^v(\d+)\.(\d+)\.(\d+)$/); return { raw:n, M:+m[1], m:+m[2], p:+m[3] }; })
+            .sort((a,b)=> a.M-b.M || a.m-b.m || a.p-b.p);
+          const latest = prod.pop();
+
+          const isMajorBump = latest ? newMaj > latest.M : newMaj > 0; // initial release case
+          if (isMajorBump) {
+            const required = process.env.MAJOR_LABEL;
+            if (required && !labelNames.includes(required)) {
+              core.info(`Major bump detected (${latest?latest.M:'none'} -> ${newMaj}) but missing required label '${required}'. Not enabling auto-merge.`);
+              return;
+            }
+          }
+
+          // Need auto-merge feature enabled in repo settings. Attempt GraphQL mutation.
+          if (!pr.node_id) { core.info('PR node_id missing; cannot enable auto-merge.'); return; }
+          const method = ['MERGE','SQUASH','REBASE'].includes(process.env.MERGE_METHOD) ? process.env.MERGE_METHOD : 'MERGE';
+          const mutation = `mutation($id:ID!,$method:PullRequestMergeMethod!){ enableAutoMerge(input:{pullRequestId:$id, mergeMethod:$method}) { clientMutationId } }`;
+          try {
+            await github.graphql(mutation, { id: pr.node_id, method });
+            core.info(`Auto-merge enabled for release PR #${pr.number} with method ${method}.`);
+          } catch (e) {
+            core.warning(`Failed to enable auto-merge (ensure repo setting is on): ${e.message}`);
+          }
 
     - name: Validate release creation
       if: steps.release.outputs.release_created == 'true'
