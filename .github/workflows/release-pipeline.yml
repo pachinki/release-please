@@ -29,7 +29,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Job 1: Validate PRs with version prediction
+  # Job 1: Validate PRs with version prediction (ONLY for PRs)
   validate-pr:
     name: "PR Validation & Version Prediction"
     if: github.event_name == 'pull_request'
@@ -61,12 +61,12 @@ jobs:
             echo "* **Current Tag**: ${{ steps.dry-run.outputs.current_tag }}";
           } >> $GITHUB_STEP_SUMMARY
 
-  # Job 2: Create release candidates (automatic on rc/* branches OR manual trigger)
+  # Job 2: Create release candidates (ONLY for rc/* branches OR manual trigger)
   release-candidate:
     name: "Create Release Candidate"
     if: >
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/rc/')) ||
-      github.event_name == 'workflow_dispatch'
+      (github.event_name == 'workflow_dispatch')
     runs-on: self-hosted
     permissions:
       contents: write
@@ -96,7 +96,7 @@ jobs:
             echo "* **RC Number**: ${{ steps.rc.outputs.rc_number }}";
           } >> $GITHUB_STEP_SUMMARY
 
-  # Job 3: Create production releases (automatic on main branch)
+  # Job 3: Create production releases (ONLY for main branch pushes)
   production-release:
     name: "Production Release"
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -115,8 +115,6 @@ jobs:
         uses: ./.github/actions/release
         with:
           release-type: simple
-          create-floating-tags: "true"
-          reconcile-state: "true"
 
       - name: Post-release actions
         if: steps.release.outputs.release_created == 'true'
@@ -127,18 +125,3 @@ jobs:
           
           # Add any post-release automation here
           # e.g., trigger deployments, notifications, etc.
-
-      - name: Summary
-        run: |
-          {
-            if [ "${{ steps.release.outputs.release_created }}" == "true" ]; then
-              echo '### 🎉 Production Release Summary';
-              echo "* **Version**: ${{ steps.release.outputs.version }}";
-              echo "* **Tag**: ${{ steps.release.outputs.tag_name }}";
-              echo "* **SHA**: ${{ steps.release.outputs.sha }}";
-              echo "* **Floating Tags**: Created vX and vX.Y tags";
-            else
-              echo '### ℹ️ No Release Created';
-              echo "No conventional commits found that warrant a release.";
-            fi
-          } >> $GITHUB_STEP_SUMMARY
