@@ -1,22 +1,5 @@
 # Changelog
 
-## [5.0.2](https://github.com/pachinki/release-please/compare/v5.0.1...v5.0.2) (2025-09-23)
-
-
-### Bug Fixes
-
-* test new rc ([00ebe84](https://github.com/pachinki/release-please/commit/00ebe8438558c18e24fcc34509ca6697fc5bd614))
-* test new rc again ([cc320d2](https://github.com/pachinki/release-please/commit/cc320d2b12bc6afbd6b0be26356eb28ea512ce6c))
-
-## [5.0.1](https://github.com/pachinki/release-please/compare/v5.0.0...v5.0.1) (2025-09-23)
-
-
-### Bug Fixes
-
-* refactor ([236069e](https://github.com/pachinki/release-please/commit/236069ecda3c107a27f379a605192044df9aa2a9))
-* refactor ([92765c9](https://github.com/pachinki/release-please/commit/92765c9b9a4a1859d588e48762ec6e59a4141788))
-* refactor 2 ([9358d94](https://github.com/pachinki/release-please/commit/9358d94897c322d106b50c9cf97e0f68dc46bb1e))
-
 ## [5.0.0](https://github.com/pachinki/release-please/compare/v4.9.0...v5.0.0) (2025-09-23)
 
 
