@@ -273,10 +273,10 @@ Predicts the next semantic version without creating releases or tags. **ZERO con
     path: "."                              # optional, defaults to "."
     pr-comment: "true"                     # optional, post prediction in PR comments
     enforce-major-approval: "true"         # optional, require approval for major bumps
-    artifact-name: "my-dry-run-log"       # optional, custom artifact name
+    artifact-name: "my-dry-run-log"        # optional, custom artifact name
     unique-suffix: "true"                  # optional, prevent artifact conflicts
-    pr-comment-marker: "custom-marker"    # optional, custom PR comment marker
-    show-raw-exit-code: "false"           # optional, show raw exit codes in PR
+    pr-comment-marker: "custom-marker"     # optional, custom PR comment marker
+    show-raw-exit-code: "false"            # optional, show raw exit codes in PR
 ```
 
 **Rich outputs available:**

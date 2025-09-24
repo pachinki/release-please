@@ -51,24 +51,9 @@ If squashing your commits, please ensure to to comment using the [conventional c
 - ✅ `fix: resolve payment processing bug`
 - ❌ `Update login feature` (won't trigger releases) 
 
-### 2. Predict the Next Version
+### 2. Create RC Release
 
-Before creating an RC, determine what version will be released:
-
-**Option A: Use Dry Run Workflow**
-1. Create PR for your feature branch
-2. Check the dry-run comment for: "Next Tag After Merge: v2.3.0"
-3. Note this version for your RC
-
-**Option B: Manual Analysis**
-Based on your commits since the last release:
-- `feat:` or `feat!:` → Minor or Major bump
-- `fix:`, `perf:` → Patch bump
-- `docs:`, `style:`, `chore:` → Usually no bump
-
-### 3. Create RC Release
-
-**Method A: Manual Trigger**
+**Manual Trigger**
 
 ```bash
 # Via GitHub UI
@@ -77,14 +62,9 @@ Based on your commits since the last release:
 # 3. Select the feature-branch
 # 4. Enter base_version: 2.3.0
 # 5. Add optional notes for testers
-
-# Via GitHub CLI (if authenticated)
-gh workflow run pre-release-rc.yml \
-  -f base_version=2.3.0 \
-  -f notes="Ready for QA testing - new API endpoints"
 ```
 
-### 4. RC Creation Results
+### 3. RC Creation Results
 
 The workflow automatically:
 - ✅ Creates RC tag: `v2.3.0-rc.1`
@@ -92,7 +72,7 @@ The workflow automatically:
 - ✅ Marks it clearly as "Pre-release" (not production)
 - ✅ Includes all changes since last release
 
-### 5. Distribute for Testing
+### 4. Distribute for Testing
 
 **Provide to QA/Testing Team:**
 
@@ -117,7 +97,7 @@ git checkout v2.3.0-rc.1
 **Report Issues**: [Link to issue tracker]
 ```
 
-### 6. Handle Testing Feedback
+### 5. Handle Testing Feedback
 
 **If Issues Found:**
 ```bash
@@ -139,7 +119,7 @@ This creates `v2.3.0-rc.2` with your fixes.
 - `v2.3.0-rc.2` → QA finds edge case  
 - `v2.3.0-rc.3` → QA approves ✅
 
-### 7. Promote to Full Release
+### 5. Promote to Full Release
 
 Once testing is complete and approved:
 
@@ -241,6 +221,7 @@ git push
 - Check repository permissions
 - Verify workflow completed successfully
 - Look for rate limiting or API errors in workflow logs
+- If the create-release flag is set to false, it won't be released.
 
 ### Testing Team Can't Access RC
 - Ensure RC created as GitHub pre-release
