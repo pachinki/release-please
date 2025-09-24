@@ -113,6 +113,12 @@ outputs:
   upload_url:
     description: "Upload URL for release assets"
     value: ${{ steps.release.outputs.upload_url }}
+  pull_request_number:
+    description: "Number of the release PR created or updated by release-please"
+    value: ${{ steps.release.outputs.pr }}
+  pull_request_numbers:
+    description: "Comma-separated list of release PR numbers when multiple PRs are opened"
+    value: ${{ steps.release.outputs.prs }}
 
 runs:
   using: "composite"
