@@ -1,5 +1,123 @@
 # Changelog
 
+## [6.0.0](https://github.com/pachinki/release-please/compare/v5.0.2...v6.0.0) (2025-09-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* refactor
+* new feature 2 release
+* new feature 2 release it fix
+* new feature 2 release it fix
+* new feature 2 release it
+* new feature 2 fix
+* new feature 2
+* 2nd pr ([#30](https://github.com/pachinki/release-please/issues/30))
+* broaden the scope of dry-run
+* test feature 4
+
+### feature
+
+* broaden the scope of dry-run ([517bca5](https://github.com/pachinki/release-please/commit/517bca5d677b639b4cd68d12916d6ec7dfd8c75a))
+* test feature 4 ([c34fae7](https://github.com/pachinki/release-please/commit/c34fae7beb69de4df1f72120490d51febf64bb78))
+
+
+### Features
+
+* 2nd pr ([#30](https://github.com/pachinki/release-please/issues/30)) ([17016ed](https://github.com/pachinki/release-please/commit/17016ed425c5793c728bc2ef35639f8214976f63))
+* add explicit last-release-sha to fix RC tag interference ([b5df277](https://github.com/pachinki/release-please/commit/b5df2773a301ee8be40f7f3a78cb001311dfa683))
+* add new feature to test improved dry-run predictions ([51ae8c2](https://github.com/pachinki/release-please/commit/51ae8c29eaa5195ab4e4ddc67574d51aacd32349))
+* add new feature to test improved dry-run predictions ([53c72cf](https://github.com/pachinki/release-please/commit/53c72cf4cf2438c7cdd7245ba049357ed73593f1))
+* add new test feature to trigger release ([9794e74](https://github.com/pachinki/release-please/commit/9794e748ee976fb5c0d14902eda21c0a30dcf9a8))
+* add prerelease-type config and RC cleanup script ([a01c554](https://github.com/pachinki/release-please/commit/a01c55444e0cd47cc32c6e28b44a154eb8946a71))
+* added test feature file ([a50b502](https://github.com/pachinki/release-please/commit/a50b502c3b195fd5a5feaead9dc4fc1c51206f5a))
+* feature fix ([2f649d7](https://github.com/pachinki/release-please/commit/2f649d775b01876c5b0628e93f56afa12b04c67a))
+* implement major bump protection with automatic approval enforcement ([d4fe25b](https://github.com/pachinki/release-please/commit/d4fe25b4d13c2b80258b38552c97e8b9a9599909))
+* initial commit ([0985310](https://github.com/pachinki/release-please/commit/0985310c1b7a47e86d27e0f89052f169f625b0e8))
+* new featur fix ([7ab9834](https://github.com/pachinki/release-please/commit/7ab9834f3cb3cce5681dbff866b8869a374118f1))
+* new featur initial ([cae14d3](https://github.com/pachinki/release-please/commit/cae14d300d9f3da0b709be92dc9696b5922028ea))
+* new feature ([c8ac224](https://github.com/pachinki/release-please/commit/c8ac22421e2943b9a1a4f1c45115bea2018bc0c4))
+* new feature ([be961a5](https://github.com/pachinki/release-please/commit/be961a522285bf1c980e730434feb424ac3c3c45))
+* new feature ([fa902bb](https://github.com/pachinki/release-please/commit/fa902bbc2bc65ae017747550522074d2e53a5b59))
+* new feature 1 ([c9febeb](https://github.com/pachinki/release-please/commit/c9febebbc4965c75aed2bee8d9dec43d34f568a9))
+* new feature 1 ([b549e2f](https://github.com/pachinki/release-please/commit/b549e2f6bdb130a248d9e8d319cb172edb2e9e48))
+* new feature 2 ([a8a937a](https://github.com/pachinki/release-please/commit/a8a937a0412e20186b2275fd3a663ca0cda0ec75))
+* new feature 2 ([ffc83e9](https://github.com/pachinki/release-please/commit/ffc83e9e8a3f76ae78d11c50daada889be1a721a))
+* new feature 2 ([3b69764](https://github.com/pachinki/release-please/commit/3b6976496dcbcb8cbe1db24c3a2bb587d5b2d54f))
+* new feature 2 ([00c6554](https://github.com/pachinki/release-please/commit/00c6554204c1f3928cb2a11e80c76459a0d9fa52))
+* new feature 2 fix ([391f31a](https://github.com/pachinki/release-please/commit/391f31a1ae3b02419be6285ef5eff0fb1eddc482))
+* new feature 2 fix ([3e4cad3](https://github.com/pachinki/release-please/commit/3e4cad3e1adc6d0421d2816fcac2bcff4ba2481f))
+* new feature 2 initial ([c992d20](https://github.com/pachinki/release-please/commit/c992d204aa23d16b265c834eadc56605b5089add))
+* new feature 2 release ([fb28fce](https://github.com/pachinki/release-please/commit/fb28fceb3ade0d70090521eb7ffb38aacdf6fdc9))
+* new feature 2 release ([1872e34](https://github.com/pachinki/release-please/commit/1872e345d1bfb2fa873be9861d532bd0c6ca71c8))
+* new feature 2 release it ([f454f63](https://github.com/pachinki/release-please/commit/f454f635ca7fb3f796bc45c58c61e07872e477c5))
+* new feature 2 release it fix ([c933ebd](https://github.com/pachinki/release-please/commit/c933ebdeb55788d53f3a15258df596825ab01b10))
+* new feature 2 release it fix ([28f46f9](https://github.com/pachinki/release-please/commit/28f46f9357a0b05aea3899176961f7a54020cd60))
+* new release ([29f3e51](https://github.com/pachinki/release-please/commit/29f3e51fa3386fb108107ad6f2351fad98f0c42a))
+* pre release 1 ([a4ffbc9](https://github.com/pachinki/release-please/commit/a4ffbc9a4b8de4dcb43407dcd6f98d8602d6b5d9))
+* refactor ([138f681](https://github.com/pachinki/release-please/commit/138f681d2e1a2c5158fd858b28138e376ad360bf))
+* test feature 5 ([74caed1](https://github.com/pachinki/release-please/commit/74caed1bfec3a2632c65b056d871f50cf544aece))
+* test feature 5 ([00e9f36](https://github.com/pachinki/release-please/commit/00e9f368ec51fc2dbcf4b70204a44bb406f8bcd2))
+* test feature 6 ([1a01785](https://github.com/pachinki/release-please/commit/1a01785dd1c5e63402d63a5aaf18a00cf738689f))
+* test feature 6 ([83c04b1](https://github.com/pachinki/release-please/commit/83c04b1fc89a291e7db47fe8cb4be3c7773e9698))
+* test improved release workflow with state reconciliation ([730f6a1](https://github.com/pachinki/release-please/commit/730f6a1e63e498f46008a503533d3e77129f7374))
+* test improved release workflow with state reconciliation ([893fe51](https://github.com/pachinki/release-please/commit/893fe5195cfe80274adc1e31d338e82aa6fe03c0))
+* update runner ([d10c797](https://github.com/pachinki/release-please/commit/d10c797ac7cf424c7e4fa059a5136fe46da91e02))
+* update runner ([c8da9b0](https://github.com/pachinki/release-please/commit/c8da9b0702d747f7d043cb0439a1443815a1c609))
+
+
+### Bug Fixes
+
+* add automatic cleanup of orphaned tags to prevent duplicate release errors ([f0b9e46](https://github.com/pachinki/release-please/commit/f0b9e461a540ef708199f84373eea52114eb3b37))
+* add last-release-sha to force correct version calculation ([1aa4d1a](https://github.com/pachinki/release-please/commit/1aa4d1a6ec8318ef91700c03aec44e40a6870d08))
+* add pre-check to prevent duplicate release creation ([17a864a](https://github.com/pachinki/release-please/commit/17a864a94ce15a8b387a3077d7c7ea4ed9bbd0b7))
+* add prerelease config to prevent RC tags from interfering with releases ([49bef98](https://github.com/pachinki/release-please/commit/49bef98cdd21d3344de7516370cd9649a1b67604))
+* dry run misreporting ([e23d86f](https://github.com/pachinki/release-please/commit/e23d86fc709d97b81a1dc66daab706c52af15d31))
+* fetch tags before validation in release workflow ([1322f30](https://github.com/pachinki/release-please/commit/1322f304ab170ef0f004aa6bd385f4bf5d80f3ad))
+* first pr ([#28](https://github.com/pachinki/release-please/issues/28)) ([84347f1](https://github.com/pachinki/release-please/commit/84347f165c8f0bdccb72a1a6a9935e39002cc56d))
+* fix dry run action ([2b0b801](https://github.com/pachinki/release-please/commit/2b0b801419509395b1b1e6514b9aca19bcf1a07f))
+* fix dry run action ([ec24d52](https://github.com/pachinki/release-please/commit/ec24d52da1922f262b769a572478fd3defd452e5))
+* fix dry run action ([70e86b6](https://github.com/pachinki/release-please/commit/70e86b6b7ad668c5efc7a67c7d44e3fc8aa89a19))
+* fix new feature ([2b5f9e0](https://github.com/pachinki/release-please/commit/2b5f9e09e34a5daf49e691cff71974996d2a0a9a))
+* fix new release ([54cc9a7](https://github.com/pachinki/release-please/commit/54cc9a72a4d96022d05aa79f58c6932a24db661d))
+* fixing dry run action ([efd7447](https://github.com/pachinki/release-please/commit/efd74476f681877583bb6e297ec3ec93dcb20025))
+* improve release workflow with state reconciliation ([be5933f](https://github.com/pachinki/release-please/commit/be5933f49ba282b6253e0411cbd1bb69635f24ba))
+* new feature 1 fix ([10e428c](https://github.com/pachinki/release-please/commit/10e428c042f9a6cd7fbc3e74ded6c0350f8ab047))
+* new feature 1 fix ([76d063c](https://github.com/pachinki/release-please/commit/76d063c0cdb78ab38f48ea661109a7d798a5a15b))
+* new feature fix ([fe9cd9b](https://github.com/pachinki/release-please/commit/fe9cd9bd14dc4af4f988f77e52fb73b45a3aa4e5))
+* pre release 1 ([d998633](https://github.com/pachinki/release-please/commit/d9986339ef766f10db45f9fe50ea66fd954fb625))
+* pre release 2 fix again ([4cc589b](https://github.com/pachinki/release-please/commit/4cc589b992865b78f90058d9e4f4157f5d62623c))
+* pre release 2 fix again ([b57f856](https://github.com/pachinki/release-please/commit/b57f85652c700b713f54946d5528d03d9ba83061))
+* refactor ([236069e](https://github.com/pachinki/release-please/commit/236069ecda3c107a27f379a605192044df9aa2a9))
+* refactor ([92765c9](https://github.com/pachinki/release-please/commit/92765c9b9a4a1859d588e48762ec6e59a4141788))
+* refactor 2 ([9358d94](https://github.com/pachinki/release-please/commit/9358d94897c322d106b50c9cf97e0f68dc46bb1e))
+* remove conflicting release-as setting from config ([5be46a3](https://github.com/pachinki/release-please/commit/5be46a333b0c321eeeaaee8910e258ab91691db6))
+* remove overly aggressive pre-check that was blocking new releases ([92f6b62](https://github.com/pachinki/release-please/commit/92f6b62dbc6e56615afffab8ca724d8351e17093))
+* remove path restrictions from dry-run workflow ([bcb1061](https://github.com/pachinki/release-please/commit/bcb106159e66538278de8ff855c176afcaa260d6))
+* remove path restrictions from dry-run workflow ([a8c4bde](https://github.com/pachinki/release-please/commit/a8c4bde3dfa5dbbafbbc596530c4af62e3baebad))
+* renamed workflows ([88b8a6c](https://github.com/pachinki/release-please/commit/88b8a6c99359ae7cac19171afa8f6829e68b6a0c))
+* renamed workflows ([b2d7432](https://github.com/pachinki/release-please/commit/b2d74326558ef18c4aa03150bf0e5681c6d83136))
+* resolve pipeline duplicate tag errors ([9082d08](https://github.com/pachinki/release-please/commit/9082d08b45efdddb7f61b30d8f29b57371a6c992))
+* resolve RC workflow YAML template validation errors ([587bfec](https://github.com/pachinki/release-please/commit/587bfec102771eb593515854a6dd2213bd3fd259)), closes [#33](https://github.com/pachinki/release-please/issues/33)
+* simulate post-merge state in dry-run for accurate predictions ([8ee35b5](https://github.com/pachinki/release-please/commit/8ee35b57bd958682e4b0c3036344fa8c916349e5))
+* simulate post-merge state in dry-run for accurate predictions ([16a4729](https://github.com/pachinki/release-please/commit/16a47292d119777beca86d3d7e5706f1d72d23d9))
+* test feature 10 ([c64ea34](https://github.com/pachinki/release-please/commit/c64ea348414f4a854ba3fa797813a4ef6a412721))
+* test feature 10 ([e57a23b](https://github.com/pachinki/release-please/commit/e57a23b0e1d999ea50beef45eeecde1691b9ea84))
+* test feature 3 ([325a282](https://github.com/pachinki/release-please/commit/325a282ba069495ea16a7444583fe27feb6d6fa9))
+* test feature 3 ([6f58d57](https://github.com/pachinki/release-please/commit/6f58d57afb8c06da4a2481cfc705a7dec5e729c8))
+* test feature 7 ([0a8e2f0](https://github.com/pachinki/release-please/commit/0a8e2f0073c5326644917f01063109bf72708af2))
+* test feature 7 ([29bb329](https://github.com/pachinki/release-please/commit/29bb3294261ad303ed4b20f1d8751c00f094b0a1))
+* test feature 8 ([f4823bf](https://github.com/pachinki/release-please/commit/f4823bfe11d6b633254276427a9130cfa77bb7c4))
+* test feature 8 ([53ec66f](https://github.com/pachinki/release-please/commit/53ec66f6fdf1bbce81460d9dfb7aa90f349717f8))
+* test feature 9 ([7fca9a4](https://github.com/pachinki/release-please/commit/7fca9a4ac40468728f328416b2db54ac7bdd4199))
+* test new rc ([00ebe84](https://github.com/pachinki/release-please/commit/00ebe8438558c18e24fcc34509ca6697fc5bd614))
+* test new rc again ([cc320d2](https://github.com/pachinki/release-please/commit/cc320d2b12bc6afbd6b0be26356eb28ea512ce6c))
+* trigger clean release workflow after duplicate tag resolution ([1ebe6c7](https://github.com/pachinki/release-please/commit/1ebe6c7fcc26fbac9dca640a3f75e452a246a46f))
+* trigger release workflow after removing RC tags ([c22df10](https://github.com/pachinki/release-please/commit/c22df109b58578ac2c9add41df2019ab18c90a70))
+* updated config json ([#22](https://github.com/pachinki/release-please/issues/22)) ([579c876](https://github.com/pachinki/release-please/commit/579c8764a133426c92aae814f1a30f3228bba6b1))
+* updated dry run action ([d80e9c7](https://github.com/pachinki/release-please/commit/d80e9c756705a9587d9d11aaba49b71541f1cf60))
+* updated dry run action ([18f5778](https://github.com/pachinki/release-please/commit/18f5778bd6ced49ef42c07244620408317b33bc8))
+
 ## [5.0.2](https://github.com/pachinki/release-please/compare/v5.0.1...v5.0.2) (2025-09-23)
 
 
