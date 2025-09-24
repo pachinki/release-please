@@ -4,13 +4,13 @@ on:
   # PR validation - run dry-run for all feature PRs
   pull_request:
     branches: [main]
-  
+
   # Automatic triggers
   push:
-    branches: 
-      - main          # Production release
-      - 'rc/**'       # Release candidates
-  
+    branches:
+      - main # Production release
+      - "rc/**" # Release candidates
+
   # Manual trigger only for pre-release
   workflow_dispatch:
     inputs:
@@ -115,7 +115,10 @@ jobs:
         uses: ./.github/actions/release
         with:
           release-type: simple
-          auto-merge-release-pr: 'true'
+          auto-merge-release-pr: "true"
+          auto-merge-block-labels: "hold,no-automerge"
+          major-approval-label: "major-approved"
+          auto-merge-method: "MERGE"
 
       - name: Post-release actions
         if: steps.release.outputs.release_created == 'true'
@@ -123,6 +126,6 @@ jobs:
           echo "🎉 Production release created!"
           echo "Version: ${{ steps.release.outputs.version }}"
           echo "Tag: ${{ steps.release.outputs.tag_name }}"
-          
+
           # Add any post-release automation here
           # e.g., trigger deployments, notifications, etc.
