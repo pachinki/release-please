@@ -52,15 +52,6 @@ jobs:
           package-name: workflows
           path: "."
 
-      - name: Summary
-        run: |
-          {
-            echo '### 📊 Version Prediction Summary';
-            echo "* **Predicted Version**: ${{ steps.dry-run.outputs.predicted_version || 'No changes detected' }}";
-            echo "* **Bump Type**: ${{ steps.dry-run.outputs.bump_type || 'none' }}";
-            echo "* **Current Tag**: ${{ steps.dry-run.outputs.current_tag }}";
-          } >> $GITHUB_STEP_SUMMARY
-
   # Job 2: Create release candidates (ONLY for rc/* branches OR manual trigger)
   release-candidate:
     name: "Create Release Candidate"
@@ -106,13 +97,3 @@ jobs:
         uses: ./.github/actions/release
         with:
           release-type: simple
-
-      - name: Post-release actions
-        if: steps.release.outputs.release_created == 'true'
-        run: |
-          echo "🎉 Production release created!"
-          echo "Version: ${{ steps.release.outputs.version }}"
-          echo "Tag: ${{ steps.release.outputs.tag_name }}"
-          
-          # Add any post-release automation here
-          # e.g., trigger deployments, notifications, etc.
