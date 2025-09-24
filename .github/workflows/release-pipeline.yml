@@ -31,7 +31,7 @@ concurrency:
 jobs:
   # Job 1: Validate PRs with version prediction (ONLY for PRs)
   validate-pr:
-    name: "Version Prediction"
+    name: "PR Validation & Version Prediction"
     if: github.event_name == 'pull_request'
     runs-on: self-hosted
     permissions:
