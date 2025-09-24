@@ -157,8 +157,9 @@ runs:
       uses: googleapis/release-please-action@v4
       with:
         token: ${{ inputs.token }}
-        # config-file: .release-please-config.json
-        # manifest-file: .release-please-manifest.json
+        # Use explicit config/manifest to avoid filename drift
+        config-file: .release-please-config.json
+        manifest-file: .release-please-manifest.json
 
     - name: Validate release creation
       if: steps.release.outputs.release_created == 'true'
