@@ -1,2 +1,2 @@
 new feature
-new feature bug
+new feature bug 2
