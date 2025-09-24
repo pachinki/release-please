@@ -87,15 +87,6 @@ jobs:
           notes: ${{ github.event.inputs.notes || 'Release candidate for testing' }}
           create-release: "false"
 
-      - name: Summary
-        run: |
-          {
-            echo '### 🚀 Release Candidate Summary';
-            echo "* **RC Tag**: ${{ steps.rc.outputs.rc_tag }}";
-            echo "* **Base Version**: ${{ steps.rc.outputs.base_version }}";
-            echo "* **RC Number**: ${{ steps.rc.outputs.rc_number }}";
-          } >> $GITHUB_STEP_SUMMARY
-
   # Job 3: Create production releases (ONLY for main branch pushes)
   production-release:
     name: "Production Release"
