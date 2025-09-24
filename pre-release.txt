@@ -8,9 +8,3 @@ v5.0 <--- refactor
 v5.0.1 <--- fix
 v5.0.2 <--- test new rc
 v5.0.3 <--- test new rc again
-v5.1 <-- new-release-2
-v5.2.0 <---- introduce for release pr automerge
-v5.2.1 <---- testing v5.2.0 changes
-v5.2.2 <---- testing v5.2.2 changes for automerge
-v5.2.3 <---- retest changes for automerge
-v5.2.3 <---- jump the gun on release pr

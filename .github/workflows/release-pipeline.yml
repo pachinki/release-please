@@ -4,20 +4,13 @@ on:
   # PR validation - run dry-run for all feature PRs
   pull_request:
     branches: [main]
-
-  # Approve release PRs via release-please
-  pull_request_target:
-    types:
-      - opened
-      - reopened
-      - synchronize
-
+  
   # Automatic triggers
   push:
-    branches:
-      - main # Production release
-      - "rc/**" # Release candidates
-
+    branches: 
+      - main          # Production release
+      - 'rc/**'       # Release candidates
+  
   # Manual trigger only for pre-release
   workflow_dispatch:
     inputs:
@@ -36,47 +29,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  auto-approve-release:
-    name: "Auto-approve Release PR"
-    if: >-
-      github.event_name == 'pull_request_target' &&
-      github.event.pull_request.user.login == 'github-actions[bot]' &&
-      github.event.pull_request.head.ref == 'release-please--branches--main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check for existing approval
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const {owner, repo} = context.repo;
-            const pull_number = context.payload.pull_request.number;
-
-            const reviews = await github.rest.pulls.listReviews({
-              owner,
-              repo,
-              pull_number,
-              per_page: 100,
-            });
-
-            const alreadyApproved = reviews.data.some(review =>
-              review.user?.login === 'github-actions[bot]' && review.state === 'APPROVED'
-            );
-
-            if (alreadyApproved) {
-              core.info('Release PR already has approval from github-actions[bot]; skipping.');
-              return;
-            }
-
-            await github.rest.pulls.createReview({
-              owner,
-              repo,
-              pull_number,
-              event: 'APPROVE',
-              body: 'Automated approval for release-please PR by github-actions[bot].',
-            });
-            core.info('Release PR approved successfully.');
-
   # Job 1: Validate PRs with version prediction (ONLY for PRs)
   validate-pr:
     name: "PR Validation & Version Prediction"
@@ -163,10 +115,6 @@ jobs:
         uses: ./.github/actions/release
         with:
           release-type: simple
-          auto-merge-release-pr: "true"
-          auto-merge-block-labels: "hold,no-automerge"
-          major-approval-label: "major-approved"
-          auto-merge-method: "MERGE"
 
       - name: Post-release actions
         if: steps.release.outputs.release_created == 'true'
@@ -174,26 +122,6 @@ jobs:
           echo "🎉 Production release created!"
           echo "Version: ${{ steps.release.outputs.version }}"
           echo "Tag: ${{ steps.release.outputs.tag_name }}"
-
+          
           # Add any post-release automation here
           # e.g., trigger deployments, notifications, etc.
-
-      - name: Auto-approve release PR
-        if: steps.release.outputs.pull_request_number != ''
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const pr = Number('${{ steps.release.outputs.pull_request_number }}');
-            if (!pr) {
-              core.info('No release PR opened; skipping approval.');
-              return;
-            }
-            await github.rest.pulls.createReview({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr,
-              event: 'APPROVE',
-              body: 'Automated approval from release pipeline.'
-            });
-            core.info(`Approved release PR #${pr}`);

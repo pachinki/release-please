@@ -5,7 +5,6 @@ This repository provides battle-tested GitHub Actions for semantic versioning an
 ## 🎯 Three Independent, Powerful Actions
 
 **Complete Release Pipeline:**
-
 1. **`release-dry-run`** - Zero-config version prediction and validation
 2. **`pre-release-rc`** - Release candidate management for testing
 3. **`release`** - Enterprise-grade production release pipeline
@@ -17,9 +16,7 @@ All actions are designed for **maximum reusability** with **minimal configuratio
 Each action works **completely independently** - use one, two, or all three based on your needs:
 
 ### **Use Case 1: Only PR Validation**
-
 Perfect for teams that just want version prediction on pull requests:
-
 ```yaml
 # .github/workflows/pr-check.yml
 name: PR Validation
@@ -40,9 +37,7 @@ jobs:
 ```
 
 ### **Use Case 2: Only RC Management**
-
 Perfect for teams that manually create releases but want RC automation:
-
 ```yaml
 # .github/workflows/rc.yml
 name: Release Candidates
@@ -64,9 +59,7 @@ jobs:
 ```
 
 ### **Use Case 3: Only Production Releases**
-
 Perfect for teams that want automated production releases:
-
 ```yaml
 # .github/workflows/release.yml
 name: Production Release
@@ -87,9 +80,7 @@ jobs:
 ```
 
 ### **Use Case 4: Complete Pipeline (All Actions in One Workflow)**
-
 The most comprehensive approach - all three actions working together:
-
 ```yaml
 # .github/workflows/complete-release.yml
 name: Complete Release Pipeline
@@ -97,7 +88,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, "rc/**"]
+    branches: [main, 'rc/**']
 
 jobs:
   # Job 1: Always validate PRs
@@ -149,9 +140,7 @@ jobs:
 ```
 
 ### **Use Case 5: Sequential Pipeline (One Job, Multiple Actions)**
-
 All actions in sequence within a single job:
-
 ```yaml
 # .github/workflows/sequential-release.yml
 name: Sequential Release Pipeline
@@ -169,24 +158,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+      
       # Step 1: Validate what would be released
       - name: Validate release
         id: validate
         uses: your-org/release-please/.github/actions/release-dry-run@v1.0.0
-
+      
       # Step 2: Create RC first (optional)
       - name: Create RC
         if: steps.validate.outputs.bump_type != 'none'
         uses: your-org/release-please/.github/actions/pre-release-rc@v1.0.0
         with:
           notes: "Pre-release validation"
-
+      
       # Step 3: Create production release
       - name: Production release
         id: release
         uses: your-org/release-please/.github/actions/release@v1.0.0
-
+      
       - name: Summary
         run: |
           echo "Predicted: ${{ steps.validate.outputs.predicted_version }}"
@@ -195,30 +184,27 @@ jobs:
 
 ## 📊 Choose What You Need
 
-| Team Type           | Actions Needed                       | Workflow Strategy                 |
-| ------------------- | ------------------------------------ | --------------------------------- |
-| **Simple Projects** | `release` only                       | Single workflow, main branch only |
-| **Testing-Heavy**   | `release-dry-run` + `pre-release-rc` | Combined workflow or separate     |
-| **Enterprise**      | All three                            | **Single comprehensive workflow** |
-| **Manual Release**  | `release-dry-run` only               | PR-only workflow                  |
-| **RC-Only Teams**   | `pre-release-rc` only                | RC branch workflow                |
+| Team Type | Actions Needed | Workflow Strategy |
+|-----------|---------------|-------------------|
+| **Simple Projects** | `release` only | Single workflow, main branch only |
+| **Testing-Heavy** | `release-dry-run` + `pre-release-rc` | Combined workflow or separate |
+| **Enterprise** | All three | **Single comprehensive workflow** |
+| **Manual Release** | `release-dry-run` only | PR-only workflow |
+| **RC-Only Teams** | `pre-release-rc` only | RC branch workflow |
 
 ## 🔄 Workflow Strategies
 
-### **Strategy 1: Single Comprehensive Workflow** ⭐ _Recommended_
-
+### **Strategy 1: Single Comprehensive Workflow** ⭐ *Recommended*
 - All three actions in one workflow file
 - Different jobs triggered by different events
 - Cleanest approach for teams using all actions
 
 ### **Strategy 2: Separate Workflows**
-
 - Each action in its own workflow file
 - Good for teams adopting actions incrementally
 - Easier to manage permissions per action
 
 ### **Strategy 3: Sequential Pipeline**
-
 - All actions in sequence within one job
 - Useful for validation → RC → release flow
 - Good for testing and staged releases
@@ -226,11 +212,9 @@ jobs:
 ## Actions Available
 
 ### 🚀 Pre-Release RC Action (Independent)
-
 Creates or increments release candidate tags (vX.Y.Z-rc.N) with GitHub prereleases.
 
 **Standalone minimal usage:**
-
 ```yaml
 - uses: your-org/release-please/.github/actions/pre-release-rc@v1.0.0
   with:
@@ -238,72 +222,64 @@ Creates or increments release candidate tags (vX.Y.Z-rc.N) with GitHub prereleas
 ```
 
 **All parameters:**
-
 ```yaml
 - uses: your-org/release-please/.github/actions/pre-release-rc@v1.0.0
   with:
-    target-branch: main # optional, defaults to repo default
-    base-version: "1.2.0" # optional, auto-detected if not provided
-    release-type: simple # optional, defaults to "simple"
-    package-name: my-package # optional, defaults to "workflows"
-    path: "." # optional, defaults to "."
-    notes: "Custom notes" # optional
-    create-release: "true" # optional, defaults to "true"
+    target-branch: main          # optional, defaults to repo default
+    base-version: "1.2.0"        # optional, auto-detected if not provided
+    release-type: simple         # optional, defaults to "simple"
+    package-name: my-package     # optional, defaults to "workflows"
+    path: "."                    # optional, defaults to "."
+    notes: "Custom notes"        # optional
+    create-release: "true"       # optional, defaults to "true"
 ```
 
 ### 📦 Release Action (Independent)
-
 Complete release management with state reconciliation, floating tags, and artifact uploads.
 
 **Standalone minimal usage:**
-
 ```yaml
 - uses: your-org/release-please/.github/actions/release@v1.0.0
 ```
 
 **Advanced usage:**
-
 ```yaml
 - uses: your-org/release-please/.github/actions/release@v1.0.0
   with:
-    release-type: simple # optional, defaults to "simple"
-    artifact-path: "dist/app.zip" # optional, upload build artifacts
-    artifact-name: "my-app.zip" # optional, custom artifact name
-    create-floating-tags: "true" # optional, create vX, vX.Y tags
-    reconcile-state: "true" # optional, fix orphaned tags/releases
-    package-name: my-package # optional, for monorepos
-    path: "." # optional, package path
+    release-type: simple               # optional, defaults to "simple"
+    artifact-path: "dist/app.zip"      # optional, upload build artifacts
+    artifact-name: "my-app.zip"        # optional, custom artifact name
+    create-floating-tags: "true"       # optional, create vX, vX.Y tags
+    reconcile-state: "true"            # optional, fix orphaned tags/releases
+    package-name: my-package           # optional, for monorepos
+    path: "."                          # optional, package path
 ```
 
 ### 📊 Release Dry Run Action (Independent)
-
 Predicts the next semantic version without creating releases or tags. **ZERO configuration required** - works perfectly out of the box!
 
 **Standalone minimal usage (literally nothing required):**
-
 ```yaml
 - uses: your-org/release-please/.github/actions/release-dry-run@v1.0.0
 ```
 
 **Advanced usage with all parameters:**
-
 ```yaml
 - uses: your-org/release-please/.github/actions/release-dry-run@v1.0.0
   with:
-    target-branch: main # optional, defaults to "main"
-    release-type: simple # optional, defaults to "simple"
-    package-name: my-package # optional, defaults to "workflows"
-    path: "." # optional, defaults to "."
-    pr-comment: "true" # optional, post prediction in PR comments
-    enforce-major-approval: "true" # optional, require approval for major bumps
-    artifact-name: "my-dry-run-log" # optional, custom artifact name
-    unique-suffix: "true" # optional, prevent artifact conflicts
-    pr-comment-marker: "custom-marker" # optional, custom PR comment marker
-    show-raw-exit-code: "false" # optional, show raw exit codes in PR
+    target-branch: main                    # optional, defaults to "main"
+    release-type: simple                   # optional, defaults to "simple"
+    package-name: my-package               # optional, defaults to "workflows"
+    path: "."                              # optional, defaults to "."
+    pr-comment: "true"                     # optional, post prediction in PR comments
+    enforce-major-approval: "true"         # optional, require approval for major bumps
+    artifact-name: "my-dry-run-log"       # optional, custom artifact name
+    unique-suffix: "true"                  # optional, prevent artifact conflicts
+    pr-comment-marker: "custom-marker"    # optional, custom PR comment marker
+    show-raw-exit-code: "false"           # optional, show raw exit codes in PR
 ```
 
 **Rich outputs available:**
-
 - `predicted_tag`: Next release tag (vX.Y.Z)
 - `predicted_version`: Next semantic version (X.Y.Z)
 - `major`, `minor`, `patch`: Individual version components
@@ -316,7 +292,6 @@ Predicts the next semantic version without creating releases or tags. **ZERO con
 ## Complete Workflow Examples
 
 ### Feature Branch Validation (Zero Config!)
-
 ```yaml
 name: Validate Changes
 on:
@@ -337,7 +312,6 @@ jobs:
 ```
 
 ### Release Candidate Creation (Independent)
-
 ```yaml
 name: Release Candidate
 on:
@@ -359,7 +333,6 @@ jobs:
 ```
 
 ### Production Release (Independent)
-
 ```yaml
 name: Release
 on:
@@ -376,14 +349,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+      
       # Simple release with all enterprise features
       - name: Release
         id: release
         uses: your-org/release-please/.github/actions/release@v1.0.0
         with:
           release-type: simple
-
+      
       # Use release outputs for downstream jobs
       - name: Deploy to production
         if: steps.release.outputs.release_created == 'true'
@@ -393,7 +366,6 @@ jobs:
 ```
 
 ### Conditional Logic Based on Version Bump (Dry Run Only)
-
 ```yaml
 name: Smart Deployment
 on:
@@ -413,17 +385,17 @@ jobs:
       - name: Predict version
         id: version
         uses: your-org/release-please/.github/actions/release-dry-run@v1.0.0
-
+      
       - name: Skip deployment for patch releases
         if: steps.version.outputs.bump_type == 'patch'
         run: echo "⏭️ Skipping deployment for patch release"
-
+      
       - name: Notify team of major release
         if: steps.version.outputs.bump_type == 'major'
         run: |
           echo "🚨 Major release detected: ${{ steps.version.outputs.predicted_version }}"
           echo "This will be a breaking change!"
-
+      
       - name: Deploy preview for minor/major releases
         if: contains(fromJSON('["minor", "major"]'), steps.version.outputs.bump_type)
         run: echo "🚀 Deploying preview for ${{ steps.version.outputs.predicted_version }}"
@@ -432,25 +404,20 @@ jobs:
 ## Key Features
 
 ### 🎯 Zero Configuration Required
-
 The `release-dry-run` action works perfectly with **no inputs** - just add it to your workflow and it works!
 
 ### 🛡️ Built-in Safety Features
-
 - **Major Version Protection**: Automatically labels and blocks major version bumps until approved
 - **Smart PR Comments**: Shows predicted version changes directly in pull requests
 - **Artifact Logging**: Preserves debug logs for troubleshooting
 
 ### 🔧 Universal Compatibility
-
 - Works with any repository using [Conventional Commits](https://conventionalcommits.org/)
 - Supports all release-please release types (simple, node, python, manifest, etc.)
 - Handles monorepos and single-package repos equally well
 
 ### 📈 Rich Output Data
-
 Both actions provide comprehensive outputs for building complex workflows:
-
 - Version predictions and bump types
 - Current and next version information
 - Safety flags for major releases
@@ -470,14 +437,12 @@ Both actions provide comprehensive outputs for building complex workflows:
 Both actions provide rich outputs for further workflow steps:
 
 **Pre-Release RC outputs:**
-
 - `base_version`: The semantic version (without RC suffix)
 - `rc_number`: The RC increment number
 - `rc_tag`: Full RC tag (vX.Y.Z-rc.N)
 - `predicted_version`: Predicted next release version
 
 **Release Action outputs:**
-
 - `release_created`: Whether a release was created (true/false)
 - `tag_name`: Name of the created tag (vX.Y.Z)
 - `version`: Complete version string (X.Y.Z)
@@ -486,8 +451,7 @@ Both actions provide rich outputs for further workflow steps:
 - `upload_url`: Upload URL for release assets
 
 **Dry Run outputs:**
-
-- `predicted_tag`: Predicted next tag (vX.Y.Z)
+- `predicted_tag`: Predicted next tag (vX.Y.Z) 
 - `predicted_version`: Predicted version (X.Y.Z)
 - `major`, `minor`, `patch`: Individual version components
 - `current_tag`: Current latest tag (vX.Y.Z)
@@ -499,23 +463,19 @@ Both actions provide rich outputs for further workflow steps:
 ## Why These Actions Are Exceptionally Reusable
 
 ### ✅ Perfect Defaults
-
 Every input has sensible defaults that work for 95% of repositories:
-
 - `target-branch: "main"` - Standard default branch
-- `release-type: "simple"` - Universal release-please type
+- `release-type: "simple"` - Universal release-please type  
 - `package-name: "workflows"` - Generic fallback name
 - `path: "."` - Root directory (most common case)
 
 ### ✅ Zero Learning Curve
-
 - Copy one line, get full functionality
 - No configuration files required
 - No setup or initialization needed
 - Works immediately with Conventional Commits
 
 ### ✅ Complete Independence AND Perfect Integration
-
 - **Independent**: Each action works standalone without dependencies
 - **Combinable**: Actions work beautifully together in single workflows
 - **Flexible Triggers**: Use conditions to run different actions based on events
@@ -523,14 +483,12 @@ Every input has sensible defaults that work for 95% of repositories:
 - **Event-Driven**: Different actions for different GitHub events (PR, push, etc.)
 
 ### ✅ Best of Both Worlds
-
 - **Adopt Incrementally**: Start with one action, add others later
 - **Combine When Ready**: Move to single comprehensive workflow
 - **No Vendor Lock-in**: Use what you need, when you need it
 - **Easy Migration**: Move between workflow strategies without changing actions
 
 ### ✅ Perfect for Different Team Workflows
-
 - **Simple Teams**: Use `release` action only for automated production releases
 - **Testing-Heavy Teams**: Use `release-dry-run` + `pre-release-rc` for validation and testing
 - **Enterprise Teams**: Use all three for complete release pipeline management
@@ -538,15 +496,13 @@ Every input has sensible defaults that work for 95% of repositories:
 - **RC-Only Teams**: Use `pre-release-rc` only for candidate management
 
 ### ✅ DRY Principle in Action
-
 Instead of copying 150+ lines of complex bash scripts:
-
 ```yaml
 # Before: Complex workflow with embedded logic
 - name: Reconcile release state
   run: |
     # 50+ lines of bash...
-- name: Release Please
+- name: Release Please  
   # More steps...
 - name: Create floating tags
   run: |
@@ -557,119 +513,3 @@ Instead of copying 150+ lines of complex bash scripts:
 ```
 
 This demonstrates **perfect separation of concerns** - complex logic lives in reusable actions, workflows orchestrate simple steps.
-
----
-
-## 🤖 Optional Auto-Merge for Release PRs
-
-The `release` action now supports **optional automatic enabling of GitHub Auto-Merge** on the generated release PR. This is ideal when:
-
-- You already review & approve each feature PR
-- The release PR is purely mechanical (changelog + version bump)
-- You want to avoid the PR remaining open and accumulating extra features
-
-### Why Auto-Merge Instead of Manual Merge?
-
-| Concern                             | Manual Release PR              | Auto-Merge Enabled                  |
-| ----------------------------------- | ------------------------------ | ----------------------------------- |
-| Human step required                 | Yes                            | No                                  |
-| Risk of feature creep while waiting | Higher                         | Much lower (PR merges quickly)      |
-| Honors branch protection checks     | Yes                            | Yes (auto-merge waits)              |
-| Major bump control                  | Manual attention               | Enforced via `major-approved` label |
-| Can temporarily pause               | Remove auto-merge or add label | Add blocking label                  |
-
-### How It Works
-
-1. `googleapis/release-please-action@v4` creates/updates the release PR.
-2. If `auto-merge-release-pr: 'true'` and conditions pass, a follow-up step calls GitHub GraphQL
-   `enableAutoMerge` on the PR.
-3. GitHub auto-merges the PR once required checks pass.
-4. A subsequent run (push on merge) creates the actual release/tag.
-
-### Inputs Enabling Auto-Merge
-
-| Input                     | Default             | Description                                             |
-| ------------------------- | ------------------- | ------------------------------------------------------- |
-| `auto-merge-release-pr`   | `false`             | Set to `true` to enable auto-merge logic                |
-| `auto-merge-block-labels` | `hold,no-automerge` | Comma-separated labels that prevent enabling auto-merge |
-| `major-approval-label`    | `major-approved`    | Required label if bump is major                         |
-| `auto-merge-method`       | `MERGE`             | GitHub merge method: `MERGE` \| `SQUASH` \| `REBASE`    |
-
-### Safeguards
-
-- **Blocking labels**: If any blocking label is present, auto-merge is skipped.
-- **Major bump protection**: Major version auto-merge only if the approval label is applied.
-- **Version parsing**: Version extracted from PR title `chore(main): release X.Y.Z`; if parsing fails, skip.
-- **Repo setting dependency**: Repository must have _Allow auto-merge_ enabled (GitHub setting). If not, the step logs a warning and exits gracefully.
-- **Does NOT bypass required checks**: Auto-merge waits exactly the same as a human merge button would.
-
-### Minimal Usage Example
-
-```yaml
-- name: Production Release
-  uses: your-org/release-please/.github/actions/release@v1.0.0
-  with:
-    auto-merge-release-pr: "true"
-```
-
-### Advanced Usage Example
-
-```yaml
-- name: Release (auto-merge with custom controls)
-  id: release
-  uses: your-org/release-please/.github/actions/release@v1.0.0
-  with:
-    auto-merge-release-pr: "true"
-    auto-merge-block-labels: "hold,no-automerge,security-freeze"
-    major-approval-label: "major-approved"
-    auto-merge-method: "MERGE"
-```
-
-### Operational Patterns
-
-| Scenario                          | Action                                                                                               |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Pause releases temporarily        | Add label `hold` to the release PR (or push an empty commit adding the label automatically via rule) |
-| Disallow auto-merge for one cycle | Set `auto-merge-release-pr: 'false'` in that run or add `no-automerge` label                         |
-| Approve major bump                | Add label `major-approved`                                                                           |
-| Change merge strategy             | Set `auto-merge-method: 'SQUASH'` (not generally recommended for release-please)                     |
-
-### When NOT to Use Auto-Merge
-
-- You intentionally batch features into larger coordinated releases.
-- You need a stabilization / QA window before tagging.
-- Regulatory/compliance requires human sign-off on the aggregated changelog.
-
-### Migration Strategy
-
-You can trial auto-merge safely:
-
-1. Enable repository auto-merge setting.
-2. Add the inputs with `auto-merge-release-pr: 'true'`.
-3. Push a `feat:` commit → observe release PR gets auto-merge enabled.
-4. Remove feature with a blocking label to validate override.
-
-### Troubleshooting
-
-| Symptom                                | Cause                       | Resolution                                        |
-| -------------------------------------- | --------------------------- | ------------------------------------------------- |
-| Step logs: Failed to enable auto-merge | Repo auto-merge disabled    | Enable in repo settings → General → Pull Requests |
-| Major bump not auto-merged             | Missing approval label      | Add `major-approved` (or your configured label)   |
-| Auto-merge not attempted               | Version could not be parsed | Ensure PR title matches release-please pattern    |
-| PR stays open despite conditions       | Required checks not green   | Wait for checks or inspect failing status         |
-
-### Frequently Asked Question
-
-**Q: Why not just merge the release PR inside the same run?**  
-A: Immediate merge risks bypassing required status checks if they report later; enabling GitHub auto-merge delegates timing to GitHub’s native, reliable mechanism.
-
----
-
-## 🚀 Future Enhancements (Ideas)
-
-- Quiet window before enabling auto-merge (e.g. wait N minutes since last push)
-- ChatOps command (`/release-freeze` / `/release-unfreeze`)
-- Slack / Teams notification when auto-merge is enabled or blocked
-- Separate stabilization branch option (`release/X.Y`) for larger orgs
-
-If you need any of these, they can be layered in without changing existing action interfaces.
