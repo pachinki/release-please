@@ -1,5 +1,23 @@
 # Changelog
 
+## [5.2.1](https://github.com/pachinki/release-please/compare/v5.2.0...v5.2.1) (2025-09-24)
+
+
+### Bug Fixes
+
+* new feature bug 2 ([39ceea6](https://github.com/pachinki/release-please/commit/39ceea645633f9473bd37eac00f2a5688278bf49))
+* new feature bug 2 ([1e57b05](https://github.com/pachinki/release-please/commit/1e57b0551164b07e390f018fa4605506bea0d294))
+* new feature bug 2 ([e31805e](https://github.com/pachinki/release-please/commit/e31805ea8bec3248cbfac84714ecf5bdd80cc956))
+* new feature bug 2.1 ([f3f8ad3](https://github.com/pachinki/release-please/commit/f3f8ad306eee823bd9241525f816c3196f4c574c))
+* new feature bug 2.1 ([f3f8ad3](https://github.com/pachinki/release-please/commit/f3f8ad306eee823bd9241525f816c3196f4c574c))
+* new feature bug 2.1 ([0dd79cd](https://github.com/pachinki/release-please/commit/0dd79cdc5bd9b77d2ee2c9a2f11f7986c1eb6d62))
+* new feature bug 2.1 ([#180](https://github.com/pachinki/release-please/issues/180)) ([65a2a08](https://github.com/pachinki/release-please/commit/65a2a08c0e61e7588d45334b8237e2ae06807115))
+* new feature fix ([4d50041](https://github.com/pachinki/release-please/commit/4d50041b56f6cd55bcc92643efd3b3781bd64f33))
+* new feature fix ([9925f72](https://github.com/pachinki/release-please/commit/9925f72a28ac7b1ea27c7a636b5f426214f5dfc5))
+* nothig to commit ([51b55e3](https://github.com/pachinki/release-please/commit/51b55e367df286a401438e99a23b0ef7310d18f5))
+* nothig to commit ([f8e9067](https://github.com/pachinki/release-please/commit/f8e9067c603480306c0ae87cd421faeb8c1cf1da))
+* nothig to commit ([f2efbe6](https://github.com/pachinki/release-please/commit/f2efbe66569f837e0e63834c66b565982726d3c1))
+
 ## [5.2.0](https://github.com/pachinki/release-please/compare/v5.1.0...v5.2.0) (2025-09-24)
 
 
