@@ -85,7 +85,7 @@ jobs:
           package-name: workflows
           path: "."
           notes: ${{ github.event.inputs.notes || 'Release candidate for testing' }}
-          create-release: "true"
+          create-release: "false"
 
       - name: Summary
         run: |
