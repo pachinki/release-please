@@ -177,3 +177,23 @@ jobs:
 
           # Add any post-release automation here
           # e.g., trigger deployments, notifications, etc.
+
+      - name: Auto-approve release PR
+        if: steps.release.outputs.pull_request_number != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const pr = Number('${{ steps.release.outputs.pull_request_number }}');
+            if (!pr) {
+              core.info('No release PR opened; skipping approval.');
+              return;
+            }
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr,
+              event: 'APPROVE',
+              body: 'Automated approval from release pipeline.'
+            });
+            core.info(`Approved release PR #${pr}`);
