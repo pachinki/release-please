@@ -3,12 +3,11 @@
   "release-type": "simple",
   "include-component-in-tag": false,
   "prerelease": false,
-  "group-pull-request-title-pattern": "chore(main): release ${version}",
-  "pull-request-title-pattern": "chore(main): release ${version}",
   "packages": {
     ".": {
       "prerelease-type": "beta",
       "extra-files": [],
+      "component": "main",
       "changelog-sections": [
         {"type": "feat", "section": "Features"},
         {"type": "fix", "section": "Bug Fixes", "hidden": true},
