@@ -1,5 +1,15 @@
 # Changelog
 
+## [5.2.3](https://github.com/pachinki/release-please/compare/v5.2.2...v5.2.3) (2025-09-24)
+
+
+### Bug Fixes
+
+* testing automerge process ([fac2642](https://github.com/pachinki/release-please/commit/fac26428d2f984b8281217e7e76ef1497e75e0d9))
+* testing automerge process ([6f2a841](https://github.com/pachinki/release-please/commit/6f2a841a171616564a13996ed28052e524aff62f))
+* testing automerge process ([11f718c](https://github.com/pachinki/release-please/commit/11f718cff70ee907d08846cba9a2581528edb672))
+* testing automerge process ([bba1c2b](https://github.com/pachinki/release-please/commit/bba1c2bfd59354e6beb630c72e21fdc23a8c32bf))
+
 ## [5.2.2](https://github.com/pachinki/release-please/compare/v5.2.1...v5.2.2) (2025-09-24)
 
 
